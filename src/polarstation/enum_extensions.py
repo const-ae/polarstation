@@ -104,17 +104,19 @@ def _missing_to_category_resolver(expr: pl.Expr, name: str):
   return resolver
 
 
-def _category_to_missing_resolver(expr: pl.Expr, name: str):
+def _category_to_missing_resolver(expr: pl.Expr, names: list[str]):
   def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
     cols = lf.select(expr).collect_schema().names()
     result = []
     for col in cols:
       old_cats = lf.collect_schema()[col].categories.to_list()
-      if name not in old_cats:
-        raise ValueError(f"category_to_missing: {name!r} is not a category")
-      new_cats = [c for c in old_cats if c != name]
+      unknown = set(names) - set(old_cats)
+      if unknown:
+        raise ValueError(f"category_to_missing: {sorted(unknown)!r} are not categories")
+      names_set = set(names)
+      new_cats = [c for c in old_cats if c not in names_set]
       result.append(
-        pl.when(pl.col(col).cast(pl.String) == name)
+        pl.when(pl.col(col).cast(pl.String).is_in(names))
         .then(None)
         .otherwise(pl.col(col).cast(pl.String))
         .cast(pl.Enum(new_cats))
@@ -244,13 +246,14 @@ class PolarstationEnumExpression:
     """
     return FrameExpr(self._expr, _missing_to_category_resolver(self._expr, name))
 
-  def category_to_missing(self, name: str) -> FrameExpr:
-    """Convert all occurrences of category `name` to null and remove it from the Enum.
+  def category_to_missing(self, name: str | Sequence[str]) -> FrameExpr:
+    """Convert all occurrences of one or more categories to null and remove them from the Enum.
 
     Args:
-      name: Category to nullify. Raises if it is not a current category.
+      name: Category name(s) to nullify. Raises if any are not current categories.
     """
-    return FrameExpr(self._expr, _category_to_missing_resolver(self._expr, name))
+    names = [name] if isinstance(name, str) else list(name)
+    return FrameExpr(self._expr, _category_to_missing_resolver(self._expr, names))
 
   def relabel(
     self,
