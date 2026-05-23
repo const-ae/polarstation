@@ -10,15 +10,15 @@ class PolarstationExpression:
   def __init__(self, expr: pl.Expr) -> None:
     self._expr = expr
 
-  def apply(self, fn: Callable[[pl.DataFrame, str], pl.Expr]) -> FrameExpr:
-    """Apply a custom function with full DataFrame context.
+  def apply(self, fn: Callable[[pl.LazyFrame, str], pl.Expr]) -> FrameExpr:
+    """Apply a custom function with full LazyFrame context.
 
     Args:
-      fn: Called as fn(df, col_name) → pl.Expr for each matched column.
+      fn: Called as fn(lf, col_name) → pl.Expr for each matched column.
     """
     expr = self._expr
 
-    def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-      return [fn(df, col) for col in df.select(expr).columns]
+    def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+      return [fn(lf, col) for col in lf.select(expr).collect_schema().names()]
 
     return FrameExpr(expr, resolver)
