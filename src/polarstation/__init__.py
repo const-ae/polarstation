@@ -1,3 +1,4 @@
+from polarstation import chop_extensions as chop_extensions
 from polarstation import dataframe_extensions as dataframe_extensions
 from polarstation import enum_extensions as enum_extensions
 from polarstation import expr_extensions as expr_extensions
