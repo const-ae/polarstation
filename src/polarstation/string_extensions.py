@@ -1,4 +1,6 @@
+import math
 import textwrap
+from typing import Literal
 
 import polars as pl
 
@@ -43,11 +45,11 @@ class PolarstationStringExpression:
       return_dtype=pl.String,
     )
 
-  def shorten(
+  def trunc(
     self,
     width: int = 5,
+    side: Literal["right", "left", "center"] = "right",
     placeholder: str = "…",
-    **kwargs,
   ) -> pl.Expr:
     """Truncate each string to fit within `width` characters.
 
@@ -55,10 +57,35 @@ class PolarstationStringExpression:
 
     Args:
       width: Maximum length of the result, including the placeholder.
-      placeholder: String appended when the text is truncated.
-      **kwargs: Forwarded to `textwrap.shorten`.
+      side: Which side to truncate — 'right' (default), 'left', or 'center'.
+      placeholder: String inserted where the text is cut.
     """
-    return self._expr.map_elements(
-      lambda s: textwrap.shorten(s, width=width, placeholder=placeholder, **kwargs),
-      return_dtype=pl.String,
+    placeholder_width = len(placeholder)
+    if placeholder_width > width:
+      raise ValueError(
+        f"placeholder width ({placeholder_width}) is larger than maximum width ({width})"
+      )
+    free_width = width - placeholder_width
+
+    str_len = self._expr.str.len_chars()
+    too_long = self._expr.is_not_null() & (str_len > width)
+    match side:
+      case "right":
+        str_mod = self._expr.str.slice(0, free_width) + placeholder
+      case "left":
+        str_mod = placeholder + self._expr.str.slice(str_len - free_width)
+      case "center":
+        str_mod = (
+          self._expr.str.slice(0, math.ceil(free_width / 2))
+          + placeholder
+          + self._expr.str.slice(str_len - math.floor(free_width / 2))
+        )
+      case _:
+        raise ValueError(f"Unknown 'side={side}' specification. It has to be right|left|center")
+
+    return (
+      pl.when(too_long)
+      .then(str_mod)
+      .otherwise(self._expr)
+      .alias(self._expr.meta.output_name())
     )
