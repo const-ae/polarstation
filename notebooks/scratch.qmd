@@ -1,0 +1,28 @@
+---
+title: "Scratch"
+format: html
+---
+
+```{python}
+%load_ext autoreload
+%autoreload 2
+```
+
+```{python}
+import polarstation as ps
+import polars as pl
+```
+
+```{python}
+penguins = pl.read_csv("https://raw.githubusercontent.com/allisonhorst/palmerpenguins/main/inst/extdata/penguins.csv")
+penguins
+```
+
+```{python}
+(penguins.
+  with_columns(
+    polars = pl.col('species').ps_str.wrap(width = 3)
+  )
+)
+```
+
