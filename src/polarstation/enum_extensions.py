@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Literal
 
 import polars as pl
@@ -49,6 +49,30 @@ def _lump_resolver(expr: pl.Expr, n: int, other_label: str):
       else:
         col_expr = pl.col(col).cast(pl.Enum(new_cats)).alias(col)
       result.append(col_expr)
+    return result
+
+  return resolver
+
+
+def _relabel_resolver(
+  expr: pl.Expr, mapping: Mapping[str, str] | Callable[[str], str], strict: bool
+):
+  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
+    cols = df.select(expr).columns
+    result = []
+    for col in cols:
+      old_cats = df[col].dtype.categories.to_list()
+      if callable(mapping):
+        new_cats = [mapping(c) for c in old_cats]
+      else:
+        if strict:
+          unknown = set(mapping.keys()) - set(old_cats)
+          if unknown:
+            raise ValueError(f"relabel strict=True: keys not in categories: {sorted(unknown)!r}")
+        new_cats = [mapping.get(c, c) for c in old_cats]
+      result.append(
+        pl.col(col).cast(pl.String).replace(old_cats, new_cats).cast(pl.Enum(new_cats)).alias(col)
+      )
     return result
 
   return resolver
@@ -109,6 +133,19 @@ class PolarstationEnumExpression:
     if isinstance(make_null, str):
       make_null = [make_null]
     return FrameExpr(self._expr, _make_resolver(self._expr, categories, list(make_null)))
+
+  def relabel(
+    self,
+    mapping: Mapping[str, str] | Callable[[str], str],
+    strict: bool = True,
+  ) -> FrameExpr:
+    """Rename categories, leaving any not present in the mapping unchanged.
+
+    Args:
+      mapping: A dict of old → new names, or a callable applied to each category name.
+      strict: If True (default), raise if any dict key is not an existing category.
+    """
+    return FrameExpr(self._expr, _relabel_resolver(self._expr, mapping, strict))
 
   def lump(self, n: int = 5, other_label: str = "Other") -> FrameExpr:
     """Collapse all but the top-n most frequent categories into `other_label`.

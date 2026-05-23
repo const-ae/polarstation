@@ -50,6 +50,43 @@ def test_make_multi_col():
     assert isinstance(r["z"].dtype, pl.Enum)
 
 
+# ── relabel ───────────────────────────────────────────────────────────────────
+
+
+def test_relabel_dict():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.relabel({"a": "A", "c": "C"}))
+    assert r["x"].dtype.categories.to_list() == ["A", "b", "C"]
+    assert r["x"].drop_nulls().to_list().count("A") == 1
+    assert r["x"].drop_nulls().to_list().count("C") == 7
+
+
+def test_relabel_callable():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.relabel(str.upper))
+    assert r["x"].dtype.categories.to_list() == ["A", "B", "C"]
+
+
+def test_relabel_preserves_nulls():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.relabel({"a": "A"}))
+    assert r["x"].null_count() == 2
+
+
+def test_relabel_partial_mapping():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.relabel({"b": "bee"}))
+    assert "b" not in r["x"].dtype.categories
+    assert "a" in r["x"].dtype.categories
+    assert "c" in r["x"].dtype.categories
+
+
+def test_relabel_strict_raises_on_unknown_key():
+    with pytest.raises(ValueError, match="strict"):
+        BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.relabel({"z": "Z"}))
+
+
+def test_relabel_strict_false_ignores_unknown_key():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.relabel({"z": "Z"}, strict=False))
+    assert r["x"].dtype.categories.to_list() == ["a", "b", "c"]
+
+
 # ── other ─────────────────────────────────────────────────────────────────────
 
 
