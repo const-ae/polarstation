@@ -172,7 +172,7 @@ def _rev_resolver(expr: pl.Expr):
   def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
     cols = lf.select(expr).collect_schema().names()
     return [
-      pl.col(col).cast(pl.Enum(lf.collect_schema()[col].categories.reverse().to_list())).alias(col)
+      pl.col(col).cast(pl.Enum(lf.collect_schema()[col].categories.to_list()[::-1])).alias(col)
       for col in cols
     ]
 
