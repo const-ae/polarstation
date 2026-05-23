@@ -120,6 +120,49 @@ def _category_to_missing_resolver(expr: pl.Expr, name: str):
   return resolver
 
 
+def _set_categories_resolver(expr: pl.Expr, categories: Sequence[str]):
+  new_cats = list(categories)
+
+  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
+    cols = df.select(expr).columns
+    return [
+      pl.col(col).cast(pl.String).cast(pl.Enum(new_cats), strict=False).alias(col)
+      for col in cols
+    ]
+
+  return resolver
+
+
+def _drop_unused_resolver(expr: pl.Expr):
+  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
+    cols = df.select(expr).columns
+    result = []
+    for col in cols:
+      old_cats = df[col].dtype.categories.to_list()
+      used = set(df[col].drop_nulls().unique().to_list())
+      new_cats = [c for c in old_cats if c in used]  # preserves original order
+      result.append(pl.col(col).cast(pl.Enum(new_cats)).alias(col))
+    return result
+
+  return resolver
+
+
+def _add_categories_resolver(expr: pl.Expr, categories: Sequence[str], after: int | float):
+  new_cats_to_add = list(categories)
+
+  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
+    cols = df.select(expr).columns
+    result = []
+    for col in cols:
+      old_cats = df[col].dtype.categories.to_list()
+      pos = len(old_cats) if after >= len(old_cats) else max(0, int(after) + 1)
+      new_cats = old_cats[:pos] + new_cats_to_add + old_cats[pos:]
+      result.append(pl.col(col).cast(pl.Enum(new_cats)).alias(col))
+    return result
+
+  return resolver
+
+
 def _rev_resolver(expr: pl.Expr):
   def resolver(df: pl.DataFrame) -> list[pl.Expr]:
     cols = df.select(expr).columns
@@ -216,6 +259,29 @@ class PolarstationEnumExpression:
       strict: If True (default), raise if any dict key is not an existing category.
     """
     return FrameExpr(self._expr, _relabel_resolver(self._expr, mapping, strict))
+
+  def set_categories(self, categories: Sequence[str]) -> FrameExpr:
+    """Set the exact category list. Values not in `categories` become null.
+
+    Args:
+      categories: The new ordered category list.
+    """
+    return FrameExpr(self._expr, _set_categories_resolver(self._expr, categories))
+
+  def drop_unused(self) -> FrameExpr:
+    """Remove categories that don't appear in the data, preserving order."""
+    return FrameExpr(self._expr, _drop_unused_resolver(self._expr))
+
+  def add_categories(
+    self, categories: Sequence[str], after: int | float = float("inf")
+  ) -> FrameExpr:
+    """Insert new categories without changing any values.
+
+    Args:
+      categories: New category labels to add.
+      after: Insert after this 0-based index. Defaults to appending at the end.
+    """
+    return FrameExpr(self._expr, _add_categories_resolver(self._expr, categories, after))
 
   def lump(self, n: int = 5, other_label: str = "Other") -> FrameExpr:
     """Collapse all but the top-n most frequent categories into `other_label`.

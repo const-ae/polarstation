@@ -50,6 +50,55 @@ def test_make_multi_col():
     assert isinstance(r["z"].dtype, pl.Enum)
 
 
+# ── set_categories / drop_unused / add_categories ────────────────────────────
+
+
+def test_set_categories_reorders():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.set_categories(["c", "b", "a"]))
+    assert r["x"].dtype.categories.to_list() == ["c", "b", "a"]
+
+
+def test_set_categories_drops_to_null():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.set_categories(["a", "c"]))
+    assert "b" not in r["x"].dtype.categories
+    assert r["x"].null_count() == 5  # 3 b's + 2 original nulls
+
+
+def test_set_categories_preserves_nulls():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.set_categories(["a", "b", "c"]))
+    assert r["x"].null_count() == 2
+
+
+def test_drop_unused_removes_empty_cats():
+    r = BASE.ps.with_columns(
+        pl.col("x").ps_enum.make(categories=["a", "b", "c", "d"]).ps_enum.drop_unused()
+    )
+    assert r["x"].dtype.categories.to_list() == ["a", "b", "c"]
+
+
+def test_drop_unused_preserves_order():
+    r = BASE.ps.with_columns(
+        pl.col("x").ps_enum.make(categories=["c", "d", "b", "a"]).ps_enum.drop_unused()
+    )
+    assert r["x"].dtype.categories.to_list() == ["c", "b", "a"]
+
+
+def test_add_categories_appends_by_default():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.add_categories(["d", "e"]))
+    assert r["x"].dtype.categories.to_list() == ["a", "b", "c", "d", "e"]
+
+
+def test_add_categories_after_index():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.add_categories(["d"], after=0))
+    assert r["x"].dtype.categories.to_list() == ["a", "d", "b", "c"]
+
+
+def test_add_categories_no_value_change():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.add_categories(["z"]))
+    assert r["x"].null_count() == 2
+    assert "z" not in r["x"].drop_nulls().to_list()
+
+
 # ── missing_to_category / category_to_missing ────────────────────────────────
 
 
