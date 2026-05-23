@@ -78,6 +78,59 @@ def _relabel_resolver(
   return resolver
 
 
+def _missing_to_category_resolver(expr: pl.Expr, name: str):
+  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
+    cols = df.select(expr).columns
+    result = []
+    for col in cols:
+      old_cats = df[col].dtype.categories.to_list()
+      if name in old_cats:
+        raise ValueError(f"missing_to_category: {name!r} is already a category")
+      new_cats = old_cats + [name]
+      result.append(
+        pl.when(pl.col(col).is_null())
+        .then(pl.lit(name))
+        .otherwise(pl.col(col).cast(pl.String))
+        .cast(pl.Enum(new_cats))
+        .alias(col)
+      )
+    return result
+
+  return resolver
+
+
+def _category_to_missing_resolver(expr: pl.Expr, name: str):
+  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
+    cols = df.select(expr).columns
+    result = []
+    for col in cols:
+      old_cats = df[col].dtype.categories.to_list()
+      if name not in old_cats:
+        raise ValueError(f"category_to_missing: {name!r} is not a category")
+      new_cats = [c for c in old_cats if c != name]
+      result.append(
+        pl.when(pl.col(col).cast(pl.String) == name)
+        .then(None)
+        .otherwise(pl.col(col).cast(pl.String))
+        .cast(pl.Enum(new_cats))
+        .alias(col)
+      )
+    return result
+
+  return resolver
+
+
+def _rev_resolver(expr: pl.Expr):
+  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
+    cols = df.select(expr).columns
+    return [
+      pl.col(col).cast(pl.Enum(df[col].dtype.categories.reverse().to_list())).alias(col)
+      for col in cols
+    ]
+
+  return resolver
+
+
 def _reorder_resolver(
   expr: pl.Expr,
   bys: list[pl.Expr],
@@ -86,7 +139,8 @@ def _reorder_resolver(
   nulls_last: bool | Sequence[bool],
   missing: Literal["drop", "last", "first"],
 ):
-  by_names = [b.meta.output_name() for b in bys]
+  # Use stable internal names to avoid collision when a by-expr targets the group-by column.
+  _tmp = [f"__by_{i}__" for i in range(len(bys))]
 
   def resolver(df: pl.DataFrame) -> list[pl.Expr]:
     desc = [descending] * len(bys) if isinstance(descending, bool) else list(descending)
@@ -95,9 +149,9 @@ def _reorder_resolver(
     cols = df.select(expr).columns
     result = []
     for col in cols:
-      order_df = df.group_by(col).agg(agg(b).alias(b.meta.output_name()) for b in bys)
-      has_null_agg = pl.any_horizontal(pl.col(n).is_null() for n in by_names)
-      complete = order_df.filter(~has_null_agg).sort(by_names, descending=desc, nulls_last=nl)
+      order_df = df.group_by(col).agg(agg(b).alias(t) for b, t in zip(bys, _tmp))
+      has_null_agg = pl.any_horizontal(pl.col(t).is_null() for t in _tmp)
+      complete = order_df.filter(~has_null_agg).sort(_tmp, descending=desc, nulls_last=nl)
       incomplete = order_df.filter(has_null_agg)
 
       if missing == "drop":
@@ -134,6 +188,22 @@ class PolarstationEnumExpression:
       make_null = [make_null]
     return FrameExpr(self._expr, _make_resolver(self._expr, categories, list(make_null)))
 
+  def missing_to_category(self, name: str) -> FrameExpr:
+    """Convert null values into a new category `name`, appended at the end.
+
+    Args:
+      name: Label for the new category. Raises if it already exists.
+    """
+    return FrameExpr(self._expr, _missing_to_category_resolver(self._expr, name))
+
+  def category_to_missing(self, name: str) -> FrameExpr:
+    """Convert all occurrences of category `name` to null and remove it from the Enum.
+
+    Args:
+      name: Category to nullify. Raises if it is not a current category.
+    """
+    return FrameExpr(self._expr, _category_to_missing_resolver(self._expr, name))
+
   def relabel(
     self,
     mapping: Mapping[str, str] | Callable[[str], str],
@@ -155,6 +225,19 @@ class PolarstationEnumExpression:
       other_label: Label for the collapsed category.
     """
     return FrameExpr(self._expr, _lump_resolver(self._expr, n, other_label))
+
+  def rev(self) -> FrameExpr:
+    """Reverse the order of categories."""
+    return FrameExpr(self._expr, _rev_resolver(self._expr))
+
+  def infreq(self, descending: bool = False) -> FrameExpr:
+    """Reorder categories by frequency, most frequent first.
+
+    Args:
+      descending: If True, least frequent first instead.
+    """
+    ordered = self.reorder(self._expr, agg=pl.Expr.len, descending=False)
+    return ordered if descending else ordered.ps_enum.rev()
 
   def reorder(
     self,

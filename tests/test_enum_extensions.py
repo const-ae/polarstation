@@ -50,6 +50,45 @@ def test_make_multi_col():
     assert isinstance(r["z"].dtype, pl.Enum)
 
 
+# ── missing_to_category / category_to_missing ────────────────────────────────
+
+
+def test_missing_to_category_basic():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.missing_to_category("NA"))
+    assert "NA" in r["x"].dtype.categories
+    assert r["x"].null_count() == 0
+    assert r["x"].to_list().count("NA") == 2
+
+
+def test_missing_to_category_appended_last():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.missing_to_category("NA"))
+    assert r["x"].dtype.categories.to_list()[-1] == "NA"
+
+
+def test_missing_to_category_raises_if_exists():
+    with pytest.raises(ValueError):
+        BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.missing_to_category("a"))
+
+
+def test_category_to_missing_basic():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.category_to_missing("b"))
+    assert "b" not in r["x"].dtype.categories
+    assert r["x"].null_count() == 5  # 3 b's + 2 original nulls
+
+
+def test_category_to_missing_raises_if_absent():
+    with pytest.raises(ValueError):
+        BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.category_to_missing("z"))
+
+
+def test_missing_to_category_roundtrip():
+    r = BASE.ps.with_columns(
+        pl.col("x").ps_enum.make().ps_enum.missing_to_category("NA").ps_enum.category_to_missing("NA")
+    )
+    assert r["x"].null_count() == 2
+    assert "NA" not in r["x"].dtype.categories
+
+
 # ── relabel ───────────────────────────────────────────────────────────────────
 
 
@@ -111,6 +150,27 @@ def test_lump_no_collapse():
 
 
 # ── reorder ───────────────────────────────────────────────────────────────────
+
+
+def test_rev():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.rev())
+    assert r["x"].dtype.categories.to_list() == ["c", "b", "a"]
+
+
+def test_rev_double():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.rev().ps_enum.rev())
+    assert r["x"].dtype.categories.to_list() == ["a", "b", "c"]
+
+
+def test_infreq_default():
+    # c=7, b=3, a=1 → most frequent first
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.infreq())
+    assert r["x"].dtype.categories.to_list() == ["c", "b", "a"]
+
+
+def test_infreq_ascending():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.infreq(descending=True))
+    assert r["x"].dtype.categories.to_list() == ["a", "b", "c"]
 
 
 def test_reorder_ascending():
