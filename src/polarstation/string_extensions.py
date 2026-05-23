@@ -9,6 +9,7 @@ class PolarstationStringExpression:
     self._expr = expr
 
   def count(self, pattern="") -> pl.Expr:
+    """Count non-overlapping regex matches in each string."""
     return self._expr.str.count_matches(pattern)
 
   def wrap(
@@ -19,6 +20,15 @@ class PolarstationStringExpression:
     break_on_hyphens: bool = True,
     **kwargs,
   ) -> pl.Expr:
+    """Wrap each string to at most `width` characters per line.
+
+    Args:
+      width: Maximum line length.
+      initial_indent: Number of spaces prepended to the first line.
+      subsequent_indent: Number of spaces prepended to every subsequent line.
+      break_on_hyphens: Allow breaks at hyphens in compound words.
+      **kwargs: Forwarded to `textwrap.fill`.
+    """
     initial_indent_str = " " * initial_indent
     subsequent_indent_str = " " * subsequent_indent
     return self._expr.map_elements(
@@ -39,6 +49,15 @@ class PolarstationStringExpression:
     placeholder: str = "…",
     **kwargs,
   ) -> pl.Expr:
+    """Truncate each string to fit within `width` characters.
+
+    Collapses whitespace and appends `placeholder` when the text is cut.
+
+    Args:
+      width: Maximum length of the result, including the placeholder.
+      placeholder: String appended when the text is truncated.
+      **kwargs: Forwarded to `textwrap.shorten`.
+    """
     return self._expr.map_elements(
       lambda s: textwrap.shorten(s, width=width, placeholder=placeholder, **kwargs),
       return_dtype=pl.String,
