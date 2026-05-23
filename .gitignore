@@ -16,3 +16,6 @@ wheels/
 # Quarto
 notebooks/.quarto/
 notebooks/*.html
+
+# Claude
+.claude/*

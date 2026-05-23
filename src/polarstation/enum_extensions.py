@@ -4,19 +4,24 @@ from typing import Literal
 import polars as pl
 
 from polarstation.frame_expr import FrameExpr
+from polarstation.typing import IntoExpr, _into_expr
 
 
 def _make_resolver(expr: pl.Expr, categories: Sequence[str] | None, make_null: list[str]):
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-    cols = df.select(expr).columns
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    cols = lf.select(expr).collect_schema().names()
     result = []
     for col in cols:
       cats = list(categories) if categories is not None else None
       if cats is None:
-        s = df[col].cast(pl.String)
+        str_expr = pl.col(col).cast(pl.String)
         if make_null:
-          s = s.set(s.is_in(make_null), None)
-        cats = s.drop_nulls().unique(maintain_order=True).to_list()
+          str_expr = pl.when(str_expr.is_in(make_null)).then(None).otherwise(str_expr)
+        cats = (
+          lf.select(str_expr.drop_nulls().unique(maintain_order=True).alias(col))
+          .collect()[col]
+          .to_list()
+        )
       str_col = pl.col(col).cast(pl.String)
       if make_null:
         str_col = pl.when(str_col.is_in(make_null)).then(None).otherwise(str_col)
@@ -27,11 +32,11 @@ def _make_resolver(expr: pl.Expr, categories: Sequence[str] | None, make_null: l
 
 
 def _lump_resolver(expr: pl.Expr, n: int, other_label: str):
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-    cols = df.select(expr).columns
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    cols = lf.select(expr).collect_schema().names()
     result = []
     for col in cols:
-      counts = df.group_by(col).len().sort("len", descending=True)
+      counts = lf.group_by(col).len().sort("len", descending=True).collect()
       non_null_counts = counts.filter(pl.col(col).is_not_null())
       top_n = non_null_counts.head(n)[col].cast(pl.String).to_list()
       has_other = len(top_n) < non_null_counts.height
@@ -57,11 +62,11 @@ def _lump_resolver(expr: pl.Expr, n: int, other_label: str):
 def _relabel_resolver(
   expr: pl.Expr, mapping: Mapping[str, str] | Callable[[str], str], strict: bool
 ):
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-    cols = df.select(expr).columns
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    cols = lf.select(expr).collect_schema().names()
     result = []
     for col in cols:
-      old_cats = df[col].dtype.categories.to_list()
+      old_cats = lf.collect_schema()[col].categories.to_list()
       if callable(mapping):
         new_cats = [mapping(c) for c in old_cats]
       else:
@@ -79,11 +84,11 @@ def _relabel_resolver(
 
 
 def _missing_to_category_resolver(expr: pl.Expr, name: str):
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-    cols = df.select(expr).columns
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    cols = lf.select(expr).collect_schema().names()
     result = []
     for col in cols:
-      old_cats = df[col].dtype.categories.to_list()
+      old_cats = lf.collect_schema()[col].categories.to_list()
       if name in old_cats:
         raise ValueError(f"missing_to_category: {name!r} is already a category")
       new_cats = old_cats + [name]
@@ -100,11 +105,11 @@ def _missing_to_category_resolver(expr: pl.Expr, name: str):
 
 
 def _category_to_missing_resolver(expr: pl.Expr, name: str):
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-    cols = df.select(expr).columns
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    cols = lf.select(expr).collect_schema().names()
     result = []
     for col in cols:
-      old_cats = df[col].dtype.categories.to_list()
+      old_cats = lf.collect_schema()[col].categories.to_list()
       if name not in old_cats:
         raise ValueError(f"category_to_missing: {name!r} is not a category")
       new_cats = [c for c in old_cats if c != name]
@@ -123,8 +128,8 @@ def _category_to_missing_resolver(expr: pl.Expr, name: str):
 def _set_categories_resolver(expr: pl.Expr, categories: Sequence[str]):
   new_cats = list(categories)
 
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-    cols = df.select(expr).columns
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    cols = lf.select(expr).collect_schema().names()
     return [
       pl.col(col).cast(pl.String).cast(pl.Enum(new_cats), strict=False).alias(col)
       for col in cols
@@ -134,12 +139,12 @@ def _set_categories_resolver(expr: pl.Expr, categories: Sequence[str]):
 
 
 def _drop_unused_resolver(expr: pl.Expr):
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-    cols = df.select(expr).columns
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    cols = lf.select(expr).collect_schema().names()
     result = []
     for col in cols:
-      old_cats = df[col].dtype.categories.to_list()
-      used = set(df[col].drop_nulls().unique().to_list())
+      old_cats = lf.collect_schema()[col].categories.to_list()
+      used = set(lf.select(pl.col(col).drop_nulls().unique()).collect()[col].to_list())
       new_cats = [c for c in old_cats if c in used]  # preserves original order
       result.append(pl.col(col).cast(pl.Enum(new_cats)).alias(col))
     return result
@@ -150,11 +155,11 @@ def _drop_unused_resolver(expr: pl.Expr):
 def _add_categories_resolver(expr: pl.Expr, categories: Sequence[str], after: int | float):
   new_cats_to_add = list(categories)
 
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-    cols = df.select(expr).columns
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    cols = lf.select(expr).collect_schema().names()
     result = []
     for col in cols:
-      old_cats = df[col].dtype.categories.to_list()
+      old_cats = lf.collect_schema()[col].categories.to_list()
       pos = len(old_cats) if after >= len(old_cats) else max(0, int(after) + 1)
       new_cats = old_cats[:pos] + new_cats_to_add + old_cats[pos:]
       result.append(pl.col(col).cast(pl.Enum(new_cats)).alias(col))
@@ -164,10 +169,10 @@ def _add_categories_resolver(expr: pl.Expr, categories: Sequence[str], after: in
 
 
 def _rev_resolver(expr: pl.Expr):
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
-    cols = df.select(expr).columns
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    cols = lf.select(expr).collect_schema().names()
     return [
-      pl.col(col).cast(pl.Enum(df[col].dtype.categories.reverse().to_list())).alias(col)
+      pl.col(col).cast(pl.Enum(lf.collect_schema()[col].categories.reverse().to_list())).alias(col)
       for col in cols
     ]
 
@@ -185,14 +190,14 @@ def _reorder_resolver(
   # Use stable internal names to avoid collision when a by-expr targets the group-by column.
   _tmp = [f"__by_{i}__" for i in range(len(bys))]
 
-  def resolver(df: pl.DataFrame) -> list[pl.Expr]:
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
     desc = [descending] * len(bys) if isinstance(descending, bool) else list(descending)
     nl = [nulls_last] * len(bys) if isinstance(nulls_last, bool) else list(nulls_last)
 
-    cols = df.select(expr).columns
+    cols = lf.select(expr).collect_schema().names()
     result = []
     for col in cols:
-      order_df = df.group_by(col).agg(agg(b).alias(t) for b, t in zip(bys, _tmp))
+      order_df = lf.group_by(col).agg(agg(b).alias(t) for b, t in zip(bys, _tmp)).collect()
       has_null_agg = pl.any_horizontal(pl.col(t).is_null() for t in _tmp)
       complete = order_df.filter(~has_null_agg).sort(_tmp, descending=desc, nulls_last=nl)
       incomplete = order_df.filter(has_null_agg)
@@ -307,7 +312,7 @@ class PolarstationEnumExpression:
 
   def reorder(
     self,
-    by: pl.Expr | Iterable[pl.Expr],
+    by: IntoExpr | Iterable[IntoExpr],
     agg: Callable[[pl.Expr], pl.Expr] = pl.Expr.median,
     descending: bool | Sequence[bool] = False,
     nulls_last: bool | Sequence[bool] = False,
@@ -316,14 +321,14 @@ class PolarstationEnumExpression:
     """Reorder categories by an aggregation of one or more columns within each group.
 
     Args:
-      by: Column(s) to aggregate per category for ordering.
+      by: Column(s) to aggregate per category for ordering. Strings are treated as column names.
       agg: Aggregation applied to each `by` column (default: median).
       descending: Sort descending. A single bool applies to all columns.
       nulls_last: Place null aggregates last. A single bool applies to all columns.
       missing: How to handle categories whose aggregate is null —
                'drop' excludes them, 'last' appends them, 'first' prepends them.
     """
-    bys = [by] if isinstance(by, pl.Expr) else list(by)
+    bys = [_into_expr(by)] if isinstance(by, (pl.Expr, str)) else [_into_expr(b) for b in by]
     return FrameExpr(
       self._expr, _reorder_resolver(self._expr, bys, agg, descending, nulls_last, missing)
     )

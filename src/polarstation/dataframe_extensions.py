@@ -14,6 +14,48 @@ def _flatten(items):
       yield item
 
 
+@pl.api.register_lazyframe_namespace("ps")
+class PolarstationLazyFrame:
+  def __init__(self, lf: pl.LazyFrame) -> None:
+    self._lf = lf
+
+  def with_columns(self, *exprs, **named_exprs) -> pl.LazyFrame:
+    """Like lf.with_columns, but also accepts FrameExpr.
+
+    Plain pl.Expr items stay fully lazy. When a FrameExpr is encountered the
+    accumulated lazy plan is collected at that point (so preceding filters and
+    projections are pushed down before any data is read), resolved against the
+    resulting DataFrame, then execution continues lazily.
+    """
+    all_items = list(_flatten(exprs))
+
+    for key, val in named_exprs.items():
+      if isinstance(val, FrameExpr):
+        original = val
+        all_items.append(FrameExpr(
+          original._col_expr,
+          lambda df, fe=original, k=key: [e.alias(k) for e in fe.resolve(df)],
+        ))
+      elif isinstance(val, pl.Expr):
+        all_items.append(val.alias(key))
+      else:
+        all_items.append(pl.lit(val).alias(key))
+
+    batch: list[pl.Expr] = []
+    lf = self._lf
+    for item in all_items:
+      if isinstance(item, FrameExpr):
+        if batch:
+          lf = lf.with_columns(batch)
+          batch = []
+        lf = lf.with_columns(item.resolve(lf))
+      else:
+        batch.append(item)
+    if batch:
+      lf = lf.with_columns(batch)
+    return lf
+
+
 @pl.api.register_dataframe_namespace("ps")
 class PolarstationDataFrame:
   def __init__(self, df: pl.DataFrame) -> None:
@@ -42,7 +84,7 @@ class PolarstationDataFrame:
         if batch:
           df = df.with_columns(batch)
           batch = []
-        df = df.with_columns(item.resolve(df))
+        df = df.with_columns(item.resolve(df.lazy()))
       else:
         batch.append(item)
     if batch:
