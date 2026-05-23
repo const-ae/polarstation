@@ -14,15 +14,66 @@ import polars as pl
 ```
 
 ```{python}
-penguins = pl.read_csv("https://raw.githubusercontent.com/allisonhorst/palmerpenguins/main/inst/extdata/penguins.csv")
+penguins = pl.read_csv("https://raw.githubusercontent.com/allisonhorst/palmerpenguins/main/inst/extdata/penguins.csv", null_values = "NA")
 penguins
 ```
 
 ```{python}
-(penguins.
-  with_columns(
-    polars = pl.col('species').ps_str.wrap(width = 3)
+(penguins
+  .with_columns(
+    tmp = pl.col('year') * 2,
   )
+  .ps.with_columns(
+    pl.col('species')
+      .cast(pl.Enum(['Gentoo', 'Adelie', 'Chinstrap']))
+      .dtype
+    )
 )
 ```
 
+
+```{python}
+(penguins
+  .group_by('species')
+  .agg(pl.col('body_mass_g').std())
+)
+
+```
+
+
+
+```{python}
+pl.Series('x', values = ['a', 'b', 'c']).cast(pl.Enum(categories = ['a', 'b', 'c', None]))
+```
+
+
+ 
+ ```{python}
+n = 1_000_000_000
+
+lf = (
+    pl.select(
+        pl.int_range(0, n).alias("id")
+    )
+    .lazy()
+    .with_columns(
+        (pl.col("id") * 2).alias("x"),
+        (pl.col("id") % 100).cast(pl.String).alias("group"),
+    )
+)
+
+lf.head().collect()
+ ```
+
+```{python}
+(lf.ps.with_columns(
+    pl.col('group').ps_enum.make()
+      .ps_enum.reorder(by = 'x', agg = pl.Expr.mean, descending=True)
+      .ps_enum.
+  )
+  .head()
+  .collect()
+  .get_column('group')
+  .dtype
+)
+```
