@@ -1,0 +1,210 @@
+---
+title: "chop — label and struct reference"
+format: md
+jupyter: python3
+---
+
+```{python}
+#| echo: false
+#| output: false
+import datetime
+import polars as pl
+import polarstation
+```
+
+`chop(breaks, ...)` bins a column at explicit breakpoints.
+This notebook shows how the label text changes across
+the four supported dtype families and the three key parameters:
+`left_closed`, `extend`, and `fmt`.
+
+All examples use a single break so the output is always two bins.
+
+```{python}
+#| echo: false
+#| output: false
+def show(df, col_name, expr):
+    s = df.ps.with_columns(expr)[col_name]
+    cats = s.dtype.categories.to_list()
+    return pl.DataFrame({"bin": cats})
+```
+
+## Dtype families
+
+### Float (continuous)
+
+Data: `[1.0, 3.0, 7.0, 10.0]`, break at `5.0`.
+
+Float labels treat the break as a mathematical boundary; the interval that
+**includes** the break value is the one closed at that end.
+
+| `extend` | `left_closed` | lower bin | upper bin |
+|----------|--------------|-----------|-----------|
+| `True` (default) | `True` (default) | `[-∞, 5)` | `[5, ∞)` |
+| `True` | `False` | `(-∞, 5]` | `(5, ∞]` |
+| `False` | `True` | `[1, 5)` | `[5, 10]` |
+| `False` | `False` | `[1, 5]` | `(5, 10]` |
+
+::: {.callout-note collapse="true"}
+## Code
+
+```{python}
+df_f = pl.DataFrame({"x": [1.0, 3.0, 7.0, 10.0]})
+pl.concat([
+    show(df_f, "x", pl.col("x").ps_chop.chop([5.0])).rename({"bin": "ext=T lc=T"}),
+    show(df_f, "x", pl.col("x").ps_chop.chop([5.0], left_closed=False)).rename({"bin": "ext=T lc=F"}),
+    show(df_f, "x", pl.col("x").ps_chop.chop([5.0], extend=False)).rename({"bin": "ext=F lc=T"}),
+    show(df_f, "x", pl.col("x").ps_chop.chop([5.0], extend=False, left_closed=False)).rename({"bin": "ext=F lc=F"}),
+], how="horizontal")
+```
+
+:::
+
+`extend=True` (default) makes the outermost edges run to ±∞ regardless of
+the data range. `extend=False` closes them at the observed min / max.
+
+With `extend=False` and `left_closed=True`, the last interval uses `]` because
+its upper bound is finite (the data maximum).
+
+### Integer (discrete)
+
+Data: `[1, 3, 7, 10]` (Int32), break at `5`.
+
+Integer labels convert each half-open cut interval to the equivalent **closed**
+discrete range, and use `{x}` for single-element bins.
+
+| `extend` | `left_closed` | lower bin | upper bin |
+|----------|--------------|-----------|-----------|
+| `True` (default) | `True` (default) | `(-∞, 4]` | `[5, +∞)` |
+| `True` | `False` | `(-∞, 5]` | `[6, +∞)` |
+| `False` | `True` | `[1, 4]` | `[5, 10]` |
+| `False` | `False` | `[1, 5]` | `[6, 10]` |
+
+::: {.callout-note collapse="true"}
+## Code
+
+```{python}
+df_i = pl.DataFrame({"x": pl.Series([1, 3, 7, 10], dtype=pl.Int32)})
+pl.concat([
+    show(df_i, "x", pl.col("x").ps_chop.chop([5])).rename({"bin": "ext=T lc=T"}),
+    show(df_i, "x", pl.col("x").ps_chop.chop([5], left_closed=False)).rename({"bin": "ext=T lc=F"}),
+    show(df_i, "x", pl.col("x").ps_chop.chop([5], extend=False)).rename({"bin": "ext=F lc=T"}),
+    show(df_i, "x", pl.col("x").ps_chop.chop([5], extend=False, left_closed=False)).rename({"bin": "ext=F lc=F"}),
+], how="horizontal")
+```
+
+:::
+
+With `left_closed=True` the break value (5) starts the upper bin, so the lower
+bin's last integer is 4.  With `left_closed=False` the break belongs to the
+lower bin (≤ 5), so the upper bin starts at 6.
+
+### String / Enum (categorical)
+
+Data: `["cat", "dog", "fish", "gull"]`, break at `"dog"`.
+
+`extend` has no effect on categorical columns — the outermost labels always
+use the first and last observed category. Breaks are matched against the
+sorted category list (or the Enum's defined order).
+
+| `left_closed` | lower bin | upper bin |
+|--------------|-----------|-----------|
+| `True` (default) | `{cat}` | `[dog, gull]` |
+| `False` | `[cat, dog]` | `[fish, gull]` |
+
+::: {.callout-note collapse="true"}
+## Code
+
+```{python}
+df_s = pl.DataFrame({"x": ["cat", "dog", "fish", "gull"]})
+pl.concat([
+    show(df_s, "x", pl.col("x").ps_chop.chop(["dog"])).rename({"bin": "lc=True"}),
+    show(df_s, "x", pl.col("x").ps_chop.chop(["dog"], left_closed=False)).rename({"bin": "lc=False"}),
+], how="horizontal")
+```
+
+:::
+
+With `left_closed=True` the break ("dog") opens the upper bin, so the lower
+bin contains only "cat" → single-element notation `{cat}`.
+With `left_closed=False` the break belongs to the lower bin, so lower is
+`[cat, dog]` and upper starts at the next category "fish".
+
+Enum columns work identically but the category order comes from the Enum
+definition rather than alphabetical sort:
+
+::: {.callout-note collapse="true"}
+## Code
+
+```{python}
+df_e = pl.DataFrame({"x": pl.Series(
+    ["low", "medium", "high", "medium"],
+    dtype=pl.Enum(["low", "medium", "high"])   # non-alphabetical order
+)})
+show(df_e, "x", pl.col("x").ps_chop.chop(["medium"]))
+```
+
+:::
+
+### Temporal (Date / Datetime / Duration)
+
+Data: four dates spanning 2020, break at `2020-07-01`.
+
+`extend` has no effect on temporal columns — bounds are always the observed
+min / max. Labels use `str()` of each value by default.
+
+| `left_closed` | lower bin | upper bin |
+|--------------|-----------|-----------|
+| `True` (default) | `[2020-01-01, 2020-07-01)` | `[2020-07-01, 2020-12-01]` |
+| `False` | `[2020-01-01, 2020-07-01]` | `(2020-07-01, 2020-12-01]` |
+
+::: {.callout-note collapse="true"}
+## Code
+
+```{python}
+D = datetime.date
+df_d = pl.DataFrame({"d": [D(2020,1,1), D(2020,4,1), D(2020,9,1), D(2020,12,1)]})
+pl.concat([
+    show(df_d, "d", pl.col("d").ps_chop.chop([D(2020,7,1)])).rename({"bin": "lc=True"}),
+    show(df_d, "d", pl.col("d").ps_chop.chop([D(2020,7,1)], left_closed=False)).rename({"bin": "lc=False"}),
+], how="horizontal")
+```
+
+:::
+
+## `fmt` — custom label formatting
+
+### Float / Integer: format-spec string or callable
+
+```{python}
+df_f = pl.DataFrame({"x": [1.0, 3.0, 7.0, 10.0]})
+# Format-spec string
+show(df_f, "x", pl.col("x").ps_chop.chop([5.0], fmt=".2f"))
+```
+
+```{python}
+# Callable
+show(df_f, "x", pl.col("x").ps_chop.chop([5.0], fmt=lambda v: f"${v:.0f}"))
+```
+
+### String / Enum: callable applied to each category name
+
+```{python}
+df_s = pl.DataFrame({"x": ["cat", "dog", "fish", "gull"]})
+show(df_s, "x", pl.col("x").ps_chop.chop(["dog"], fmt=str.upper))
+```
+
+### Temporal: callable applied to each bound value
+
+```{python}
+D = datetime.date
+df_d = pl.DataFrame({"d": [D(2020,1,1), D(2020,4,1), D(2020,9,1), D(2020,12,1)]})
+show(df_d, "d", pl.col("d").ps_chop.chop([D(2020,7,1)], fmt=lambda d: d.strftime("%b %Y")))
+```
+
+## Parameter summary
+
+| Parameter | Float | Integer | String / Enum | Temporal |
+|-----------|-------|---------|---------------|----------|
+| `left_closed` | controls which side of break is open | same, but label adjusts to show discrete range | controls whether break belongs to lower or upper bin | controls which side is open |
+| `extend` | `True` → ±∞ outer labels; `False` → data min/max | same | no effect (always data min/max) | no effect (always data min/max) |
+| `fmt` | format-spec string or `Callable[[float], str]` | same | `Callable[[str], str]` | `Callable[[value], str]` |

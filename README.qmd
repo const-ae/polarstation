@@ -229,6 +229,76 @@ pl.DataFrame({"x": ["short", "a much longer string"]}).select(
 
 ---
 
+## `ps_chop` — Bin a column into intervals
+
+These functions must be executed from within `ps.with_columns`.
+They return an `Enum`-typed column whose category names are the bin labels.
+
+```{python}
+scores = pl.DataFrame({"score": [12, 45, 67, 89, 95, 23, 78]})
+```
+
+### `chop(breaks, left_closed=True, extend=True, fmt=None, labels=None)`
+
+Cut at explicit breakpoints.
+
+```{python}
+scores.ps.with_columns(
+    pl.col("score").ps_chop.chop([40, 70], fmt=".0f").alias("grade")
+)
+```
+
+Integer columns use fully-closed `[a, b]` notation; single-element bins
+are written as `{x}`.
+
+### `width(size, start=None, left_closed=True, extend=False, fmt=None, labels=None)`
+
+Cut into equal-width bins.
+
+```{python}
+scores.ps.with_columns(
+    pl.col("score").ps_chop.width(25).alias("band")
+)
+```
+
+For temporal columns `size` must be a `datetime.timedelta`.
+
+### `n_elements(n, tail="split", left_closed=True, extend=False, fmt="g", labels=None)`
+
+Cut into groups of `n` observations (sorted order).
+Ties are never split — the boundary advances to the next distinct value.
+`tail="merge"` absorbs a short final group into the preceding one.
+
+```{python}
+scores.ps.with_columns(
+    pl.col("score").ps_chop.n_elements(3).alias("tercile")
+)
+```
+
+### `n_groups(k, raw=True, left_closed=True, extend=False, fmt=None, labels=None)`
+
+Cut into `k` equal-count groups using quantile boundaries.
+With `raw=False` the labels show percentages instead of actual values.
+
+```{python}
+scores.ps.with_columns(
+    pl.col("score").ps_chop.n_groups(3).alias("tertile")
+)
+```
+
+### `quantiles(probs, raw=False, left_closed=True, extend=False, fmt=None, labels=None)`
+
+Cut at specific quantile probabilities.
+Default labels show percentages; pass `raw=True` for actual cut values.
+
+```{python}
+scores.ps.with_columns(
+    pl.col("score").ps_chop.quantiles([0.25, 0.75]).alias("iqr_group")
+)
+```
+
+---
+
 ## `ps.apply` — Escape hatch
 
 When you need the full DataFrame context to build an expression, use `expr.ps.apply`.
