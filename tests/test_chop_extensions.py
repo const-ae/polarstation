@@ -472,9 +472,31 @@ def test_chop_enum_preserves_order():
     assert s[1] == "[medium, high]"
 
 
-def test_chop_str_break_not_in_data_raises():
-    with pytest.raises(ValueError, match="not found"):
-        col(DF_STR, pl.col("x").ps_chop.chop(["zzz"]))
+def test_chop_str_unseen_break_is_valid():
+    # A break not in the data is allowed for String columns; it is added to the
+    # output Enum categories and acts as a partition boundary.
+    s = col(DF_STR, pl.col("x").ps_chop.chop(["zzz"]))
+    cats = s.dtype.categories.to_list()
+    assert cats == ["[apple, elderberry]", "{zzz}"]
+    assert s[0] == "[apple, elderberry]"   # apple
+    assert s[4] == "[apple, elderberry]"   # elderberry
+    assert s[5] is None                    # null
+
+
+def test_chop_str_unseen_break_between_values():
+    # Break "d" sits alphabetically between "cherry" and "elderberry"
+    df = pl.DataFrame({"x": ["apple", "cherry", "elderberry"]})
+    s = col(df, pl.col("x").ps_chop.chop(["d"]))
+    cats = s.dtype.categories.to_list()
+    assert cats == ["[apple, cherry]", "[d, elderberry]"]
+    assert s[0] == "[apple, cherry]"
+    assert s[1] == "[apple, cherry]"
+    assert s[2] == "[d, elderberry]"
+
+
+def test_chop_enum_break_not_in_categories_raises():
+    with pytest.raises(ValueError, match="not in Enum categories"):
+        col(DF_ENUM, pl.col("x").ps_chop.chop(["extreme"]))
 
 
 def test_n_elements_str_labels():
@@ -711,3 +733,84 @@ def test_n_elements_all_same_values():
     df = pl.DataFrame({"x": [7.0, 7.0, 7.0, 7.0]})
     s = col(df, pl.col("x").ps_chop.n_elements(2))
     assert s.n_unique() == 1
+
+
+# ── multiple column selection ─────────────────────────────────────────────────
+
+
+def test_chop_multi_column_numeric():
+    df = pl.DataFrame({"x": [1.0, 3.0, 5.0], "y": [2.0, 4.0, 6.0]})
+    result = df.ps.with_columns(pl.col("x", "y").ps_chop.chop([3.0]))
+    assert result["x"].dtype.categories.to_list() == ["[-∞, 3)", "[3, ∞)"]
+    assert result["y"].dtype.categories.to_list() == ["[-∞, 3)", "[3, ∞)"]
+    assert result["x"][0] == "[-∞, 3)"
+    assert result["x"][2] == "[3, ∞)"
+    assert result["y"][0] == "[-∞, 3)"
+    assert result["y"][2] == "[3, ∞)"
+
+
+def test_chop_multi_column_string():
+    # "banana" is not in y's data; union approach adds it to y's categories so the
+    # break is still a valid partition boundary for both columns.
+    df = pl.DataFrame({"x": ["apple", "banana", "cherry"], "y": ["ant", "bee", "cat"]})
+    result = df.ps.with_columns(pl.col("x", "y").ps_chop.chop(["banana"]))
+    assert len(result["x"].dtype.categories) == 2
+    assert len(result["y"].dtype.categories) == 2
+
+
+def test_chop_multi_column_type_mismatch_raises():
+    df = pl.DataFrame({"x": [1.0, 3.0], "y": ["a", "b"]})
+    with pytest.raises(TypeError, match="numeric breaks"):
+        df.ps.with_columns(pl.col("x", "y").ps_chop.chop([1.0]))
+
+
+def test_width_multi_column():
+    df = pl.DataFrame({"x": [1.0, 3.0, 5.0], "y": [10.0, 20.0, 30.0]})
+    result = df.ps.with_columns(pl.col("x", "y").ps_chop.width(5.0))
+    assert result["x"].dtype == result["x"].dtype  # Enum
+    assert result["y"].dtype == result["y"].dtype  # Enum (different bins)
+    assert result["x"][0] == result["x"][1]  # 1.0 and 3.0 in same bin
+    assert result["y"][0] != result["y"][2]  # 10.0 and 30.0 in different bins
+
+
+# ── type-mismatch error messages ──────────────────────────────────────────────
+
+
+def test_chop_numeric_breaks_on_string_col_raises():
+    with pytest.raises(TypeError, match="numeric breaks"):
+        DF_STR.ps.with_columns(pl.col("x").ps_chop.chop([1.0]))
+
+
+def test_chop_numeric_breaks_on_enum_col_raises():
+    with pytest.raises(TypeError, match="numeric breaks"):
+        DF_ENUM.ps.with_columns(pl.col("x").ps_chop.chop([1.0]))
+
+
+def test_chop_numeric_breaks_on_temporal_col_raises():
+    with pytest.raises(TypeError, match="numeric breaks"):
+        DF_DATE.ps.with_columns(pl.col("d").ps_chop.chop([1.0]))
+
+
+def test_chop_string_breaks_on_numeric_col_raises():
+    with pytest.raises(TypeError, match="string breaks"):
+        DF10.ps.with_columns(pl.col("x").ps_chop.chop(["a"]))
+
+
+def test_chop_string_breaks_on_temporal_col_raises():
+    with pytest.raises(TypeError, match="string breaks"):
+        DF_DATE.ps.with_columns(pl.col("d").ps_chop.chop(["2020-01-01"]))
+
+
+def test_chop_temporal_breaks_on_numeric_col_raises():
+    with pytest.raises(TypeError, match="temporal"):
+        DF10.ps.with_columns(pl.col("x").ps_chop.chop([D(2020, 1, 1)]))
+
+
+def test_chop_temporal_breaks_on_string_col_raises():
+    with pytest.raises(TypeError, match="temporal"):
+        DF_STR.ps.with_columns(pl.col("x").ps_chop.chop([D(2020, 1, 1)]))
+
+
+def test_width_timedelta_on_numeric_col_raises():
+    with pytest.raises(TypeError, match="timedelta"):
+        DF10.ps.with_columns(pl.col("x").ps_chop.width(TD(days=1)))
