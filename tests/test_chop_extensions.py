@@ -1,3 +1,4 @@
+import datetime
 import math
 
 import polars as pl
@@ -61,7 +62,7 @@ def test_chop_null_passthrough():
 
 def test_chop_include_breaks():
     # extend=True (default): outer bounds are ±inf
-    s = col(DF10, pl.col("x").ps_chop.chop([3.0, 7.0], include_breaks=True))
+    s = col(DF10, pl.col("x").ps_chop.chop([3.0, 7.0], return_struct=True))
     assert s.dtype == pl.Struct({"lo": pl.Float64, "hi": pl.Float64})
     rows = s.to_list()
     assert rows[0] == {"lo": float("-inf"), "hi": 3.0}
@@ -71,13 +72,13 @@ def test_chop_include_breaks():
 
 def test_chop_include_breaks_no_extend():
     # extend=False: outer bounds are data min/max
-    s = col(DF10, pl.col("x").ps_chop.chop([3.0, 7.0], extend=False, include_breaks=True))
+    s = col(DF10, pl.col("x").ps_chop.chop([3.0, 7.0], extend=False, return_struct=True))
     assert s.to_list()[0] == {"lo": 1.0, "hi": 3.0}
     assert s.to_list()[-1] == {"lo": 7.0, "hi": 10.0}
 
 
 def test_chop_include_breaks_null():
-    s = col(DF_NULL, pl.col("x").ps_chop.chop([2.0], include_breaks=True))
+    s = col(DF_NULL, pl.col("x").ps_chop.chop([2.0], return_struct=True))
     assert s[1] == {"lo": None, "hi": None}
 
 
@@ -117,7 +118,7 @@ def test_width_null_passthrough():
 
 
 def test_width_include_breaks():
-    s = col(DF10, pl.col("x").ps_chop.width(3.0, include_breaks=True))
+    s = col(DF10, pl.col("x").ps_chop.width(3.0, return_struct=True))
     assert s.dtype == pl.Struct({"lo": pl.Float64, "hi": pl.Float64})
     assert s[0] == {"lo": 1.0, "hi": 4.0}
     assert s[3] == {"lo": 4.0, "hi": 7.0}
@@ -125,7 +126,7 @@ def test_width_include_breaks():
 
 
 def test_width_include_breaks_extend():
-    s = col(DF10, pl.col("x").ps_chop.width(3.0, extend=True, include_breaks=True))
+    s = col(DF10, pl.col("x").ps_chop.width(3.0, extend=True, return_struct=True))
     assert math.isinf(s[0]["lo"])
     assert math.isinf(s[-1]["hi"])
 
@@ -135,7 +136,6 @@ def test_width_include_breaks_extend():
 
 def test_n_elements_labels():
     s = col(DF10, pl.col("x").ps_chop.n_elements(4))
-    # [1..4) → {1,2,3,4}? No: 4 elements = {1,2,3,4} first group, then break at xs[4]=5
     # groups: {1,2,3,4}, {5,6,7,8}, {9,10}
     assert s[0] == "[1, 5)"
     assert s[4] == "[5, 9)"
@@ -178,7 +178,7 @@ def test_n_elements_null_passthrough():
 
 
 def test_n_elements_include_breaks():
-    s = col(DF10, pl.col("x").ps_chop.n_elements(4, include_breaks=True))
+    s = col(DF10, pl.col("x").ps_chop.n_elements(4, return_struct=True))
     assert s.dtype == pl.Struct({"lo": pl.Float64, "hi": pl.Float64})
     assert s[0] == {"lo": 1.0, "hi": 5.0}
     assert s[4] == {"lo": 5.0, "hi": 9.0}
@@ -219,14 +219,14 @@ def test_n_groups_null_passthrough():
 
 
 def test_n_groups_include_breaks():
-    s = col(DF10, pl.col("x").ps_chop.n_groups(3, include_breaks=True))
+    s = col(DF10, pl.col("x").ps_chop.n_groups(3, return_struct=True))
     assert s.dtype == pl.Struct({"lo": pl.Float64, "hi": pl.Float64})
     assert s[0] == {"lo": 1.0, "hi": 4.0}
     assert s[-1] == {"lo": 7.0, "hi": 10.0}
 
 
 def test_n_groups_include_breaks_extend():
-    s = col(DF10, pl.col("x").ps_chop.n_groups(3, include_breaks=True, extend=True))
+    s = col(DF10, pl.col("x").ps_chop.n_groups(3, return_struct=True, extend=True))
     assert math.isinf(s[0]["lo"])
     assert math.isinf(s[-1]["hi"])
 
@@ -271,14 +271,14 @@ def test_quantiles_null_passthrough():
 
 
 def test_quantiles_include_breaks_pct():
-    s = col(DF10, pl.col("x").ps_chop.quantiles([0.25, 0.5, 0.75], include_breaks=True))
+    s = col(DF10, pl.col("x").ps_chop.quantiles([0.25, 0.5, 0.75], return_struct=True))
     assert s.dtype == pl.Struct({"lo": pl.Float64, "hi": pl.Float64})
     assert s[0] == {"lo": 1.0, "hi": 3.25}
     assert s[-1] == {"lo": 7.75, "hi": 10.0}
 
 
 def test_quantiles_include_breaks_raw_extend():
-    s = col(DF10, pl.col("x").ps_chop.quantiles([0.5], raw=True, extend=True, include_breaks=True))
+    s = col(DF10, pl.col("x").ps_chop.quantiles([0.5], raw=True, extend=True, return_struct=True))
     assert math.isinf(s[0]["lo"])
     assert math.isinf(s[-1]["hi"])
 
@@ -301,6 +301,7 @@ def test_chop_all_null():
     s = col(DF_ALL_NULL, pl.col("x").ps_chop.chop([3.0]))
     assert s.is_null().all()
     assert s.dtype.categories.to_list() == ['[-∞, 3)', '[3, ∞)']
+
 
 def test_chop_no_extend_empty():
     assert col(DF_EMPTY, pl.col("x").ps_chop.chop([3.0], extend=False)).len() == 0
@@ -364,13 +365,11 @@ DF_POS_INF = pl.DataFrame(
 
 
 def test_chop_pos_inf_in_last_bin():
-    # +Inf maps to the last bin
     s = col(DF_INF, pl.col("x").ps_chop.chop([3.0]))
     assert s[3] == "[3, ∞)"
 
 
 def test_chop_neg_inf_in_first_bin():
-    # -Inf maps to the first bin
     s = col(DF_INF, pl.col("x").ps_chop.chop([3.0]))
     assert s[4] == "[-∞, 3)"
 
@@ -382,13 +381,243 @@ def test_chop_nan_becomes_null():
 
 
 def test_width_pos_inf_in_last_bin():
-    # +Inf maps to the last finite bin; bin structure is based on finite data only
     s = col(DF_POS_INF, pl.col("x").ps_chop.width(5.0))
-    assert s[-1] == "[5, 10]"   # inf lands in last bin, labeled by finite bounds
-    assert s[-2] == "[5, 10]"   # 10.0 is also in last bin
+    assert s[-1] == "[5, 10]"
+    assert s[-2] == "[5, 10]"
 
 
 def test_width_pos_inf_does_not_create_extra_bin():
-    # Bin structure comes from finite data [0..10]; +Inf should not add an extra bin
     s = col(DF_POS_INF, pl.col("x").ps_chop.width(5.0))
     assert s.dtype.categories.to_list() == ["[0, 5)", "[5, 10]"]
+
+
+# ── integer columns (discrete closed labels) ──────────────────────────────────
+
+
+DF_INT = pl.DataFrame({"x": pl.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=pl.Int32)})
+
+
+def test_chop_int_labels_extend():
+    s = col(DF_INT, pl.col("x").ps_chop.chop([3, 7]))
+    assert s.dtype.categories.to_list() == ["(-∞, 2]", "[3, 6]", "[7, +∞)"]
+
+
+def test_chop_int_labels_no_extend():
+    s = col(DF_INT, pl.col("x").ps_chop.chop([3, 7], extend=False))
+    assert s.dtype.categories.to_list() == ["[1, 2]", "[3, 6]", "[7, 10]"]
+
+
+def test_chop_int_single_element_label():
+    df = pl.DataFrame({"x": pl.Series([1, 2, 3], dtype=pl.Int32)})
+    s = col(df, pl.col("x").ps_chop.chop([2, 3], extend=False))
+    assert s.dtype.categories.to_list() == ["{1}", "{2}", "{3}"]
+
+
+def test_chop_int_struct():
+    s = col(DF_INT, pl.col("x").ps_chop.chop([3, 7], extend=False, return_struct=True))
+    assert s[0] == {"lo": 1.0, "hi": 2.0}
+    assert s[2] == {"lo": 3.0, "hi": 6.0}
+    assert s[-1] == {"lo": 7.0, "hi": 10.0}
+
+
+def test_chop_int_struct_extend():
+    s = col(DF_INT, pl.col("x").ps_chop.chop([3, 7], return_struct=True))
+    assert math.isinf(s[0]["lo"])
+    assert s[0]["hi"] == 2.0
+    assert s[2] == {"lo": 3.0, "hi": 6.0}
+    assert math.isinf(s[-1]["hi"])
+
+
+def test_n_elements_int_labels():
+    s = col(DF_INT, pl.col("x").ps_chop.n_elements(3))
+    assert s.dtype.categories.to_list() == ["[1, 3]", "[4, 6]", "[7, 9]", "{10}"]
+
+
+def test_width_int_labels():
+    s = col(DF_INT, pl.col("x").ps_chop.width(5))
+    assert s.dtype.categories.to_list() == ["[1, 5]", "[6, 10]"]
+
+
+# ── string / enum columns ─────────────────────────────────────────────────────
+
+
+DF_STR = pl.DataFrame({"x": ["apple", "banana", "cherry", "date", "elderberry", None]})
+DF_ENUM = pl.DataFrame({
+    "x": pl.Series(["low", "medium", "medium", "high"], dtype=pl.Enum(["low", "medium", "high"]))
+})
+
+
+def test_chop_str_labels():
+    s = col(DF_STR, pl.col("x").ps_chop.chop(["banana", "date"]))
+    assert s.dtype.categories.to_list() == ["{apple}", "[banana, cherry]", "[date, elderberry]"]
+    assert s[0] == "{apple}"
+    assert s[1] == "[banana, cherry]"
+    assert s[4] == "[date, elderberry]"
+    assert s[5] is None
+
+
+def test_chop_str_struct():
+    s = col(DF_STR, pl.col("x").ps_chop.chop(["banana", "date"], return_struct=True))
+    assert s[0] == {"lo": "apple", "hi": "apple"}
+    assert s[1] == {"lo": "banana", "hi": "cherry"}
+    assert s[4] == {"lo": "date", "hi": "elderberry"}
+    assert s[5] == {"lo": None, "hi": None}
+
+
+def test_chop_enum_preserves_order():
+    # Enum with non-alphabetical order: [low, medium, high]; break at "medium"
+    s = col(DF_ENUM, pl.col("x").ps_chop.chop(["medium"]))
+    assert s.dtype.categories.to_list() == ["{low}", "[medium, high]"]
+    assert s[0] == "{low}"
+    assert s[1] == "[medium, high]"
+
+
+def test_chop_str_break_not_in_data_raises():
+    with pytest.raises(ValueError, match="not found"):
+        col(DF_STR, pl.col("x").ps_chop.chop(["zzz"]))
+
+
+def test_n_elements_str_labels():
+    s = col(DF_STR.drop_nulls(), pl.col("x").ps_chop.n_elements(2))
+    assert s.dtype.categories.to_list() == [
+        "[apple, banana]", "[cherry, date]", "{elderberry}"
+    ]
+
+
+def test_n_elements_str_single_element():
+    df = pl.DataFrame({"x": ["a", "b", "c"]})
+    s = col(df, pl.col("x").ps_chop.n_elements(1))
+    assert s.dtype.categories.to_list() == ["{a}", "{b}", "{c}"]
+
+
+def test_n_groups_str():
+    df = pl.DataFrame({"x": ["a", "b", "c", "c", "c", "c"]})
+    s = col(df, pl.col("x").ps_chop.n_groups(2))
+    assert len(s.dtype.categories) == 2
+
+
+def test_quantiles_str():
+    df = pl.DataFrame({"x": ["a", "b", "c", "d"]})
+    s = col(df, pl.col("x").ps_chop.quantiles([0.5]))
+    assert len(s.dtype.categories) >= 1
+
+
+def test_width_str():
+    df = pl.DataFrame({"x": ["a", "b", "c", "d", "e", "f"]})
+    s = col(df, pl.col("x").ps_chop.width(2))
+    assert s.dtype.categories.to_list() == ["[a, b]", "[c, d]", "[e, f]"]
+
+
+def test_str_null_passthrough():
+    s = col(DF_STR, pl.col("x").ps_chop.chop(["banana"]))
+    assert s[5] is None
+
+
+# ── temporal columns ──────────────────────────────────────────────────────────
+
+
+D = datetime.date
+DT = datetime.datetime
+TD = datetime.timedelta
+
+DF_DATE = pl.DataFrame({"d": [D(2020, 1, 1), D(2020, 4, 1), D(2020, 7, 1), D(2020, 10, 1)]})
+DF_DT = pl.DataFrame({"d": [DT(2020, 1, 1), DT(2020, 7, 1), DT(2021, 1, 1), DT(2021, 7, 1)]})
+DF_DUR = pl.DataFrame({"d": pl.Series(
+    [TD(days=1), TD(days=5), TD(days=10), TD(days=15)], dtype=pl.Duration("us")
+)})
+
+
+def col_t(df, expr):
+    name = expr.meta.output_name()
+    return df.ps.with_columns(expr)[name]
+
+
+def test_chop_date_labels():
+    s = col_t(DF_DATE, pl.col("d").ps_chop.chop([D(2020, 7, 1)]))
+    cats = s.dtype.categories.to_list()
+    assert len(cats) == 2
+    assert cats[0] == "[2020-01-01, 2020-07-01)"
+
+
+def test_chop_date_struct_lo():
+    s = col_t(DF_DATE, pl.col("d").ps_chop.chop([D(2020, 7, 1)], return_struct=True))
+    assert s[0]["lo"] == D(2020, 1, 1)
+    assert s[2]["lo"] == D(2020, 7, 1)
+
+
+def test_chop_date_struct_hi():
+    s = col_t(DF_DATE, pl.col("d").ps_chop.chop([D(2020, 7, 1)], return_struct=True))
+    # hi of first bin is the break boundary; hi of last bin is data max
+    assert s[0]["hi"] == D(2020, 7, 1)
+    assert s[-1]["hi"] == D(2020, 10, 1)
+
+
+def test_chop_datetime_labels():
+    s = col_t(DF_DT, pl.col("d").ps_chop.chop([DT(2021, 1, 1)]))
+    cats = s.dtype.categories.to_list()
+    assert len(cats) == 2
+    assert cats[0] == '[2020-01-01 00:00:00, 2021-01-01 00:00:00)'
+
+
+def test_chop_datetime_struct_lo():
+    s = col_t(DF_DT, pl.col("d").ps_chop.chop([DT(2021, 1, 1)], return_struct=True))
+    assert s[0]["lo"] == DT(2020, 1, 1)
+    assert s[2]["lo"] == DT(2021, 1, 1)
+
+
+def test_chop_datetime_struct_hi():
+    s = col_t(DF_DT, pl.col("d").ps_chop.chop([DT(2021, 1, 1)], return_struct=True))
+    # hi of first bin is the break; hi of last bin is data max
+    assert s[0]["hi"] == DT(2021, 1, 1)
+    assert s[-1]["hi"] == DT(2021, 7, 1)
+
+
+def test_width_date_timedelta():
+    s = col_t(DF_DATE, pl.col("d").ps_chop.width(TD(days=90)))
+    cats = s.dtype.categories.to_list()
+    assert len(cats) >= 2
+    assert cats[0] == "[2020-01-01, 2020-03-31)"
+
+
+def test_width_duration():
+    s = col_t(DF_DUR, pl.col("d").ps_chop.width(TD(days=5)))
+    cats = s.dtype.categories.to_list()
+    assert len(cats) == 3
+    assert cats[0] == '[1 day, 0:00:00, 6 days, 0:00:00)'
+
+
+def test_n_elements_date():
+    s = col_t(DF_DATE, pl.col("d").ps_chop.n_elements(2))
+    cats = s.dtype.categories.to_list()
+    assert len(cats) == 2
+    assert s[0] == cats[0]
+    assert s[2] == cats[1]
+
+
+def test_n_groups_date():
+    s = col_t(DF_DATE, pl.col("d").ps_chop.n_groups(2))
+    cats = s.dtype.categories.to_list()
+    assert len(cats) == 2
+
+
+def test_quantiles_date():
+    s = col_t(DF_DATE, pl.col("d").ps_chop.quantiles([0.5]))
+    cats = s.dtype.categories.to_list()
+    assert len(cats) >= 1
+
+
+def test_date_struct_dtype():
+    s = col_t(DF_DATE, pl.col("d").ps_chop.chop([D(2020, 7, 1)], return_struct=True))
+    assert s.dtype.fields[0].dtype == pl.Date
+    assert s.dtype.fields[1].dtype == pl.Date
+
+
+def test_datetime_struct_dtype():
+    s = col_t(DF_DT, pl.col("d").ps_chop.chop([DT(2021, 1, 1)], return_struct=True))
+    assert isinstance(s.dtype.fields[0].dtype, pl.Datetime)
+
+
+def test_date_null_passthrough():
+    df = pl.DataFrame({"d": [D(2020, 1, 1), None, D(2020, 7, 1)]})
+    s = col_t(df, pl.col("d").ps_chop.chop([D(2020, 4, 1)]))
+    assert s[1] is None
