@@ -208,3 +208,25 @@ show(df_d, "d", pl.col("d").ps_chop.chop([D(2020,7,1)], fmt=lambda d: d.strftime
 | `left_closed` | controls which side of break is open | same, but label adjusts to show discrete range | controls whether break belongs to lower or upper bin | controls which side is open |
 | `extend` | `True` → ±∞ outer labels; `False` → data min/max | same | no effect (always data min/max) | no effect (always data min/max) |
 | `fmt` | format-spec string or `Callable[[float], str]` | same | `Callable[[str], str]` | `Callable[[value], str]` |
+
+## Differences from santoku
+
+`ps_chop` is inspired by R's [santoku](https://github.com/hughjonesd/santoku) package but diverges in several ways.
+
+**`extend` semantics** — santoku's default is `extend = NULL`, which uses the data range for outer bin boundaries — equivalent to our `extend=False`.
+Santoku's `extend = FALSE` turns values outside any break into `null`; we have no equivalent mode.
+
+**Last interval** — santoku's `close_end` parameter controls whether the final interval is closed on both sides.
+We always close the last interval when its bound is finite, matching santoku's default `close_end = TRUE`.
+
+**Integer columns** — santoku uses half-open `[a, b)` notation for all numeric types.
+We use fully-closed `[a, b]` notation for integer columns, converting each half-open boundary to the integer it contains (e.g. `[lo, 5)` becomes `[lo, 4]`).
+
+**String / Enum columns** — santoku treats character vectors as unordered and errors on `chop`; quantile-based functions warn.
+We support string and Enum columns natively, with labels like `[apple, cherry]` or `{singleton}`.
+
+**`drop` parameter** — santoku can drop empty factor levels from the result.
+We always preserve all Enum categories; empty bins appear as unused levels.
+
+**Warnings** — santoku warns when quantile boundaries collapse on identical data, or when ties force groups larger than `n` in `chop_n`.
+We silently handle both cases.

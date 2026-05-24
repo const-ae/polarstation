@@ -262,24 +262,38 @@ def _enum_null_result(col: str, labels: Sequence[str] | None, return_struct: boo
 # ── cut helpers ───────────────────────────────────────────────────────────────
 
 
-def _brk_n(xs: list, n: int, tail: str) -> list:
+def _brk_n(xs: list, n: int, tail: str, left_closed: bool = True) -> list:
   """Interior breakpoints for equal-count bins (santoku brk_n algorithm).
 
-  Walks sorted values placing a boundary every n elements, advancing past ties
-  so that identical values are never split across bins.
+  For left-closed [lo, hi) intervals the break is placed at the first element
+  of the next group; for right-closed (lo, hi] intervals it is placed at the
+  last element of the current group. Ties are never split across bins.
   """
   breaks = []
   group_starts: list[int] = [0]
   i = 0
-  while i + n < len(xs):
-    next_start = i + n
-    while next_start < len(xs) and xs[next_start] == xs[next_start - 1]:
-      next_start += 1
-    if next_start >= len(xs):
-      break
-    breaks.append(xs[next_start])
-    group_starts.append(next_start)
-    i = next_start
+  if left_closed:
+    while i + n < len(xs):
+      next_start = i + n
+      while next_start < len(xs) and xs[next_start] == xs[next_start - 1]:
+        next_start += 1
+      if next_start >= len(xs):
+        break
+      breaks.append(xs[next_start])
+      group_starts.append(next_start)
+      i = next_start
+  else:
+    # Break at the last element of each group; ties spill into current bin.
+    while i + n <= len(xs):
+      target_val = xs[i + n - 1]
+      next_start = i + n
+      while next_start < len(xs) and xs[next_start] == target_val:
+        next_start += 1
+      if next_start >= len(xs):
+        break
+      breaks.append(target_val)
+      group_starts.append(next_start)
+      i = next_start
   if tail == "merge" and breaks:
     if len(xs) - group_starts[-1] < n:
       breaks.pop()
@@ -695,7 +709,7 @@ class PolarstationChopExpression:
           xs_phys = lf.select(
             pl.col(col).drop_nulls().sort().to_physical()
           ).collect()[col].to_list()
-          breaks_phys = _brk_n(xs_phys, n, tail)
+          breaks_phys = _brk_n(xs_phys, n, tail, left_closed)
           if not xs_phys:
             labs = list(labels) if labels is not None else ["[-∞, ∞)"]
             result.append(_cut_phys_col(col, [], labs, left_closed, return_struct, 0, 0, dtype))
@@ -716,7 +730,7 @@ class PolarstationChopExpression:
           xs_phys = lf.select(
             pl.col(col).cast(pl.Enum(categories)).to_physical().drop_nulls().sort()
           ).collect()[col].to_list()
-          breaks_phys = _brk_n(xs_phys, n, tail)
+          breaks_phys = _brk_n(xs_phys, n, tail, left_closed)
           if not xs_phys:
             result.append(_enum_null_result(col, labels, return_struct))
           else:
@@ -736,7 +750,7 @@ class PolarstationChopExpression:
 
         xs = lf.select(pl.col(col).drop_nulls().sort()).collect()[col].to_list()
         xs_f = [float(v) for v in xs]
-        breaks_list = _brk_n(xs_f, n, tail)
+        breaks_list = _brk_n(xs_f, n, tail, left_closed)
         if not xs_f:
           label_lo, label_hi = float("-inf"), float("inf")
         elif extend:

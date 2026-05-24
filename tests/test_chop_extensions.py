@@ -621,3 +621,93 @@ def test_date_null_passthrough():
     df = pl.DataFrame({"d": [D(2020, 1, 1), None, D(2020, 7, 1)]})
     s = col_t(df, pl.col("d").ps_chop.chop([D(2020, 4, 1)]))
     assert s[1] is None
+
+
+# ── n_elements right-closed (left_closed=False) ───────────────────────────────
+
+
+def test_n_elements_right_closed_equal_groups():
+    # break placed at last element of first group, not first of next
+    df = pl.DataFrame({"x": [1.0, 2.0, 3.0, 4.0]})
+    s = col(df, pl.col("x").ps_chop.n_elements(2, left_closed=False))
+    assert s.dtype.categories.to_list() == ["[1, 2]", "(2, 4]"]
+    assert s[0] == "[1, 2]"
+    assert s[1] == "[1, 2]"
+    assert s[2] == "(2, 4]"
+    assert s[3] == "(2, 4]"
+
+
+def test_n_elements_right_closed_ties_not_split():
+    # ties on the break value spill into current (right-closed) bin
+    df = pl.DataFrame({"x": [1.0, 2.0, 2.0, 2.0, 5.0]})
+    s = col(df, pl.col("x").ps_chop.n_elements(2, left_closed=False))
+    assert s[1] == s[2] == s[3]  # all 2.0s in the same bin
+
+
+def test_n_elements_right_closed_int():
+    df = pl.DataFrame({"x": pl.Series([1, 2, 3, 4], dtype=pl.Int32)})
+    s = col(df, pl.col("x").ps_chop.n_elements(2, left_closed=False))
+    assert s.dtype.categories.to_list() == ["[1, 2]", "[3, 4]"]
+    assert s[0] == "[1, 2]"
+    assert s[1] == "[1, 2]"
+    assert s[2] == "[3, 4]"
+    assert s[3] == "[3, 4]"
+
+
+def test_n_elements_right_closed_str():
+    df = pl.DataFrame({"x": ["a", "b", "c", "d"]})
+    s = col(df, pl.col("x").ps_chop.n_elements(2, left_closed=False))
+    assert s.dtype.categories.to_list() == ["[a, b]", "[c, d]"]
+    assert s[0] == "[a, b]"
+    assert s[1] == "[a, b]"
+    assert s[2] == "[c, d]"
+    assert s[3] == "[c, d]"
+
+
+def test_n_elements_right_closed_date():
+    s = col_t(DF_DATE, pl.col("d").ps_chop.n_elements(2, left_closed=False))
+    assert s.dtype.categories.to_list() == [
+        "[2020-01-01, 2020-04-01]",
+        "(2020-04-01, 2020-10-01]",
+    ]
+    assert s[0] == "[2020-01-01, 2020-04-01]"
+    assert s[1] == "[2020-01-01, 2020-04-01]"
+    assert s[2] == "(2020-04-01, 2020-10-01]"
+    assert s[3] == "(2020-04-01, 2020-10-01]"
+
+
+# ── single-value and boundary edge cases ──────────────────────────────────────
+
+
+def test_chop_single_value_data():
+    # one data point: lands in the bin that contains it
+    df = pl.DataFrame({"x": [5.0]})
+    s = col(df, pl.col("x").ps_chop.chop([3.0]))
+    assert s[0] == "[3, ∞)"
+
+
+def test_chop_single_value_no_extend():
+    df = pl.DataFrame({"x": [5.0]})
+    s = col(df, pl.col("x").ps_chop.chop([3.0], extend=False))
+    assert s[0] == "[3, 5]"
+
+
+def test_n_elements_n_larger_than_data():
+    # n > len(data) with tail="merge": everything goes in one bin
+    df = pl.DataFrame({"x": [1.0, 2.0, 3.0]})
+    s = col(df, pl.col("x").ps_chop.n_elements(10, tail="merge"))
+    assert s.n_unique() == 1
+
+
+def test_n_elements_n_equals_data_length():
+    # n == len(data): all values in one bin
+    df = pl.DataFrame({"x": [1.0, 2.0, 3.0]})
+    s = col(df, pl.col("x").ps_chop.n_elements(3))
+    assert s.n_unique() == 1
+
+
+def test_n_elements_all_same_values():
+    # all identical: can't split, should produce a single bin
+    df = pl.DataFrame({"x": [7.0, 7.0, 7.0, 7.0]})
+    s = col(df, pl.col("x").ps_chop.n_elements(2))
+    assert s.n_unique() == 1
