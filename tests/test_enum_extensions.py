@@ -114,9 +114,11 @@ def test_missing_to_category_appended_last():
     assert r["x"].dtype.categories.to_list()[-1] == "NA"
 
 
-def test_missing_to_category_raises_if_exists():
-    with pytest.raises(ValueError):
-        BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.missing_to_category("a"))
+def test_missing_to_category_existing_category():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.missing_to_category("a"))
+    assert r["x"].dtype.categories.to_list() == ["a", "b", "c"]  # unchanged
+    assert r["x"].null_count() == 0
+    assert (r["x"] == "a").sum() == BASE["x"].is_null().sum() + (BASE["x"] == "a").sum()
 
 
 def test_category_to_missing_basic():
