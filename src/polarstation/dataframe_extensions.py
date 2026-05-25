@@ -62,7 +62,14 @@ class PolarstationDataFrame:
     self._df = df
 
   def with_columns(self, *exprs, **named_exprs) -> pl.DataFrame:
-    """Like df.with_columns, but also accepts FrameExpr and multi-column selectors."""
+    """Like df.with_columns, but also accepts FrameExpr and multi-column selectors.
+
+    Examples:
+      animals = polarstation.make_example_data("animals")
+      animals.ps.with_columns(
+          pl.col("animal").ps_enum.make().ps_enum.reorder(by="weight")
+      )
+    """
     all_items = list(_flatten(exprs))
 
     for key, val in named_exprs.items():

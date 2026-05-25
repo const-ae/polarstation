@@ -990,6 +990,10 @@ class PolarstationChopExpression:
   ) -> pl.Expr | FrameExpr:
     """Cut into intervals at explicit breakpoints.
 
+    Returns an Enum-typed column whose category names are the bin labels.
+    Integer columns use fully-closed `[a, b]` notation; single-element bins
+    are written as `{x}`.
+
     Args:
       breaks: Interior breakpoints; sorted automatically. Accepts numeric, string, or
               temporal Python values (datetime, date, timedelta, time).
@@ -1001,6 +1005,12 @@ class PolarstationChopExpression:
               -∞/+∞. For unsigned integers: 0/+∞. If False, uses data min/max.
               Temporal breaks always use data bounds regardless of this setting.
       return_struct: If True, return a struct {lo, hi} instead of just the label.
+
+    Examples:
+      scores = polarstation.make_example_data("scores")
+      scores.ps.with_columns(
+          pl.col("score").ps_chop.chop([40, 70], fmt=".0f").alias("grade")
+      )
     """
     breaks = sorted(b for b in breaks)
 
@@ -1066,6 +1076,8 @@ class PolarstationChopExpression:
   ) -> FrameExpr:
     """Chop into equal-width bins of given size.
 
+    Returns an Enum-typed column whose category names are the bin labels.
+
     Args:
       size: Width of each bin. For numeric columns, a number. For temporal
             columns, a datetime.timedelta.
@@ -1079,6 +1091,10 @@ class PolarstationChopExpression:
               the first label opens at the anchor and the last closes at
               anchor + n_bins * size.
       return_struct: If True, return a struct instead of just the label.
+
+    Examples:
+      scores = polarstation.make_example_data("scores")
+      scores.ps.with_columns(pl.col("score").ps_chop.width(25).alias("band"))
     """
 
     def map_dtype(*, name, dtype):
@@ -1115,6 +1131,7 @@ class PolarstationChopExpression:
   ) -> FrameExpr:
     """Chop into groups of n observations each.
 
+    Returns an Enum-typed column whose category names are the bin labels.
     Boundaries are drawn after every nth element (sorted order). Ties are never
     split — the boundary advances to the next distinct value if needed.
 
@@ -1129,6 +1146,10 @@ class PolarstationChopExpression:
               integers). If False (default), the first label opens at the data
               minimum and the last closes at the data maximum.
       return_struct: If True, return a struct instead of just the label.
+
+    Examples:
+      scores = polarstation.make_example_data("scores")
+      scores.ps.with_columns(pl.col("score").ps_chop.n_elements(3).alias("tercile"))
     """
 
     def map_dtype(*, name, dtype):
@@ -1165,6 +1186,8 @@ class PolarstationChopExpression:
   ) -> FrameExpr:
     """Chop into k equal-count groups (by quantile boundaries).
 
+    Returns an Enum-typed column whose category names are the bin labels.
+
     Args:
       k: Number of groups.
       labels: Category labels (must be k). Auto-generated if omitted.
@@ -1176,6 +1199,10 @@ class PolarstationChopExpression:
       extend: If True, extend outermost labels to -∞ / +∞ (only affects numeric
               raw=True). Default False. For unsigned columns, lower bound is 0.
       return_struct: If True, return a struct instead of just the label.
+
+    Examples:
+      scores = polarstation.make_example_data("scores")
+      scores.ps.with_columns(pl.col("score").ps_chop.n_groups(3).alias("tertile"))
     """
     return self.quantiles(
       [i / k for i in range(1, k)],
@@ -1199,6 +1226,8 @@ class PolarstationChopExpression:
   ) -> FrameExpr:
     """Chop at quantile boundaries.
 
+    Returns an Enum-typed column whose category names are the bin labels.
+
     Args:
       probs: Quantile probabilities in (0, 1), e.g. [0.25, 0.5, 0.75] for quartiles.
       labels: Category labels (must be len(probs) + 1). Auto-generated if omitted.
@@ -1211,6 +1240,12 @@ class PolarstationChopExpression:
       extend: If True, extend outermost labels to -∞ / +∞ (only affects numeric
               raw=True). Default False. For unsigned columns, lower bound is 0.
       return_struct: If True, return a struct instead of just the label.
+
+    Examples:
+      scores = polarstation.make_example_data("scores")
+      scores.ps.with_columns(
+          pl.col("score").ps_chop.quantiles([0.25, 0.75]).alias("iqr_group")
+      )
     """
 
     def map_dtype(*, name, dtype):

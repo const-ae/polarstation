@@ -11,7 +11,15 @@ class PolarstationStringExpression:
     self._expr = expr
 
   def count(self, pattern="") -> pl.Expr:
-    """Count non-overlapping regex matches in each string."""
+    r"""Count non-overlapping regex matches in each string.
+
+    Deprecated: thin wrapper around `pl.Expr.str.count_matches`; likely to be removed.
+
+    Examples:
+      pl.DataFrame({"x": ["hello world", "foo bar baz", ""]}).select(
+          pl.col("x").ps_str.count(r"\b\w+\b").alias("word_count")
+      )
+    """
     return self._expr.str.count_matches(pattern)
 
   def wrap(
@@ -30,6 +38,12 @@ class PolarstationStringExpression:
       subsequent_indent: Number of spaces prepended to every subsequent line.
       break_on_hyphens: Allow breaks at hyphens in compound words.
       **kwargs: Forwarded to `textwrap.fill`.
+
+    Examples:
+      text = pl.DataFrame({"x": ["A long sentence that exceeds the column width."]}).select(
+          pl.col("x").ps_str.wrap(width=25)
+      )['x'].to_list()
+      text
     """
     initial_indent_str = " " * initial_indent
     subsequent_indent_str = " " * subsequent_indent
@@ -59,6 +73,11 @@ class PolarstationStringExpression:
       width: Maximum length of the result, including the placeholder.
       side: Which side to truncate — 'right' (default), 'left', or 'center'.
       placeholder: String inserted where the text is cut.
+
+    Examples:
+      pl.DataFrame({"x": ["short", "a much longer string"]}).select(
+          pl.col("x").ps_str.trunc(width=10)
+      )
     """
     placeholder_width = len(placeholder)
     if placeholder_width > width:
@@ -84,8 +103,5 @@ class PolarstationStringExpression:
         raise ValueError(f"Unknown 'side={side}' specification. It has to be right|left|center")
 
     return (
-      pl.when(too_long)
-      .then(str_mod)
-      .otherwise(self._expr)
-      .alias(self._expr.meta.output_name())
+      pl.when(too_long).then(str_mod).otherwise(self._expr).alias(self._expr.meta.output_name())
     )
