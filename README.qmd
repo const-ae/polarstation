@@ -101,6 +101,12 @@ To re-render the README.md run
 quarto render README.qmd --to gfm
 ```
 
+To upload to pypi run
+```
+uv build
+uv publish
+```
+
 ## Acknowledgements
 
 This package stands on the shoulders of several excellent projects:
