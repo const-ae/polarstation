@@ -36,14 +36,17 @@ def _lump_resolver(expr: pl.Expr, n: int, other_label: str):
     for name in col_schema.names():
       counts = lf.group_by(name).len().sort("len", descending=True).collect()
       non_null_counts = counts.filter(pl.col(name).is_not_null())
-      top_n = non_null_counts.head(n)[name].cast(pl.String).to_list()
-      has_other = len(top_n) < non_null_counts.height
-      new_cats = top_n + ([other_label] if has_other and other_label not in top_n else [])
+      top_n_set = set(non_null_counts.head(n)[name].cast(pl.String).to_list())
+      has_other = len(top_n_set) < non_null_counts.height
+      # Preserve original category order; Other is always appended last.
+      original_cats = col_schema[name].categories.to_list()
+      kept_cats = [c for c in original_cats if c in top_n_set]
+      new_cats = kept_cats + ([other_label] if has_other and other_label not in top_n_set else [])
       if has_other:
         col_expr = (
           pl.when(pl.col(name).is_null())
           .then(None)
-          .when(pl.col(name).cast(pl.String).is_in(top_n))
+          .when(pl.col(name).cast(pl.String).is_in(top_n_set))
           .then(pl.col(name).cast(pl.String))
           .otherwise(pl.lit(other_label))
           .cast(pl.Enum(new_cats))
@@ -197,7 +200,7 @@ def _reorder_resolver(
     col_schema = lf.select(expr).collect_schema()
     result = []
     for name in col_schema.names():
-      order_df = lf.group_by(name).agg(agg(b).alias(t) for b, t in zip(bys, _tmp)).collect()
+      order_df = lf.group_by(name).agg(agg(b).alias(t) for b, t in zip(bys, _tmp, strict=False)).collect()
       has_null_agg = pl.any_horizontal(pl.col(t).is_null() for t in _tmp)
       complete = order_df.filter(~has_null_agg).sort(_tmp, descending=desc, nulls_last=nl)
       incomplete = order_df.filter(has_null_agg)
