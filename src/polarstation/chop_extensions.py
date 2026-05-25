@@ -21,6 +21,9 @@ _INTEGER_POLARS_TYPES = (
   pl.UInt32,
   pl.UInt64,
 )
+_FLOAT_POLARS_TYPES = (pl.Float32, pl.Float64)
+_NUMERIC_POLARS_TYPES = _INTEGER_POLARS_TYPES + _FLOAT_POLARS_TYPES
+_CATEGORICAL_POLARS_TYPES = (pl.Enum, pl.Categorical, pl.String)
 
 
 def _is_temporal(dtype: pl.DataType) -> bool:
@@ -36,7 +39,20 @@ def _is_integer(dtype: pl.DataType) -> bool:
 
 
 def _is_categorical(dtype: pl.DataType) -> bool:
-  return isinstance(dtype, (pl.Enum, pl.Categorical, pl.String))
+  return isinstance(dtype, _CATEGORICAL_POLARS_TYPES)
+
+
+def _assert_choppable_dtype(name: str, dtype: pl.DataType) -> None:
+  """Raise TypeError for any dtype that no ps_chop function supports."""
+  if not (
+    isinstance(dtype, _NUMERIC_POLARS_TYPES)
+    or _is_temporal(dtype)
+    or _is_categorical(dtype)
+  ):
+    raise TypeError(
+      f"Column '{name}' has unsupported dtype {dtype}; ps_chop functions require "
+      f"a numeric, temporal, String, Categorical, or Enum column."
+    )
 
 
 # ── numeric label helpers ─────────────────────────────────────────────────────
@@ -60,7 +76,7 @@ def _make_labels(
   bounds = [lo] + breaks + [hi]
   n = len(bounds) - 1
   result = []
-  for i, (lo_, hi_) in enumerate(zip(bounds, bounds[1:])):
+  for i, (lo_, hi_) in enumerate(zip(bounds, bounds[1:], strict=False)):
     if left_closed:
       rb = "]" if i == n - 1 and math.isfinite(hi_) else ")"
       result.append(f"[{_fmt_bound(lo_, fmt)}, {_fmt_bound(hi_, fmt)}{rb}")
@@ -79,7 +95,7 @@ def _make_quantile_labels(
 ) -> list[str]:
   bounds = [0.0] + probs + [1.0]
   labels = []
-  for i, (lo, hi) in enumerate(zip(bounds, bounds[1:])):
+  for i, (lo, hi) in enumerate(zip(bounds, bounds[1:], strict=False)):
     lo_s = _fmt_pct(lo, fmt)
     hi_s = _fmt_pct(hi, fmt)
     is_last = i == len(bounds) - 2
@@ -105,7 +121,7 @@ def _make_physical_representation_labels(
   bounds = [lo_phys] + breaks_phys + [hi_phys]
   n = len(bounds) - 1
   result = []
-  for i, (lo_, hi_) in enumerate(zip(bounds, bounds[1:])):
+  for i, (lo_, hi_) in enumerate(zip(bounds, bounds[1:], strict=False)):
     v_lo = pl.Series([lo_], dtype=dtype)[0]
     v_hi = pl.Series([hi_], dtype=dtype)[0]
     lo_s = fmt(v_lo) if callable(fmt) else str(v_lo)
@@ -155,7 +171,7 @@ def _make_int_labels(
   bounds = [lo] + breaks + [hi]
   n = len(bounds) - 1
   result = []
-  for i, (a, b) in enumerate(zip(bounds, bounds[1:])):
+  for i, (a, b) in enumerate(zip(bounds, bounds[1:], strict=False)):
     is_first = i == 0
     is_last = i == n - 1
     if left_closed:
@@ -201,7 +217,7 @@ def _make_enum_labels(
   bounds = [lo_phys] + breaks_phys + [hi_phys]
   n = len(bounds) - 1
   result = []
-  for i, (a, b) in enumerate(zip(bounds, bounds[1:])):
+  for i, (a, b) in enumerate(zip(bounds, bounds[1:], strict=False)):
     is_first = i == 0
     is_last = i == n - 1
     if left_closed:
@@ -329,7 +345,7 @@ def _cut_expr(
     if discrete:
       lo_vals: list[float] = []
       hi_vals: list[float] = []
-      for i, (a, b) in enumerate(zip(bounds, bounds[1:])):
+      for i, (a, b) in enumerate(zip(bounds, bounds[1:], strict=False)):
         is_first = i == 0
         is_last = i == n - 1
         if left_closed:
@@ -570,6 +586,7 @@ class PolarstationChopExpression:
         result = []
         for name in col_schema.names():
           dtype = col_schema[name]
+          _assert_choppable_dtype(name, dtype)
           if _is_temporal(dtype) or _is_categorical(dtype):
             raise TypeError(
               f"Column '{name}' has dtype {dtype}; numeric breaks are only valid for "
@@ -730,6 +747,7 @@ class PolarstationChopExpression:
       result = []
       for name in col_schema.names():
         dtype = col_schema[name]
+        _assert_choppable_dtype(name, dtype)
 
         if _is_temporal(dtype):
           if not isinstance(size, _dt.timedelta):
@@ -884,6 +902,7 @@ class PolarstationChopExpression:
       result = []
       for name in col_schema.names():
         dtype = col_schema[name]
+        _assert_choppable_dtype(name, dtype)
 
         if _is_temporal(dtype):
           xs_phys = (
@@ -1020,6 +1039,7 @@ class PolarstationChopExpression:
       result = []
       for name in col_schema.names():
         dtype = col_schema[name]
+        _assert_choppable_dtype(name, dtype)
 
         if _is_temporal(dtype):
           breaks_phys, mn_p, mx_p = _quantile_breaks_physical_representation(

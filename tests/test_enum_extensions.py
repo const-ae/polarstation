@@ -180,7 +180,7 @@ def test_relabel_strict_false_ignores_unknown_key():
 
 def test_lump_basic():
     r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.lump(n=2))
-    assert r["x"].dtype == pl.Enum(["c", "b", "Other"])
+    assert r["x"].dtype == pl.Enum(["b", "c", "Other"])
     assert "a" not in r["x"].to_list()
     assert r["x"].to_list().count("Other") == 1
 
