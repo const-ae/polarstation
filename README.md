@@ -52,9 +52,9 @@ print(df['animal'].dtype)
     Enum(categories=['bird', 'dog', 'cow'])
 
 `ps.with_columns` is a drop-in replacement for `with_columns` from
-polars that can handle some additional use-case like functions that need
-to peek at the full data for evaluation. It works efficiently
-identically on both `DataFrame` and `LazyFrame`.
+polars that can handle some additional use cases like functions that
+need to peek at the full data for evaluation. It works efficiently on
+both `DataFrame` and `LazyFrame`.
 
 ## Details
 
@@ -100,7 +100,7 @@ uv run quarto render
 and then in a separate terminal
 
 ``` bash
-uv run quarto previe
+uv run quarto preview
 ```
 
 To re-render the README.md run
