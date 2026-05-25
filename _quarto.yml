@@ -1,0 +1,33 @@
+project:
+  type: website
+  output-dir: _site
+  pre-render: scripts/build_reference.py
+  render:
+    - index.qmd
+    - reference/index.qmd
+    - notebooks/chop_labels.qmd
+    - notebooks/walkthrough.qmd
+
+website:
+  title: polarstation
+  description: Tidy helper functions for Polars, inspired by the R tidyverse.
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: reference/index.qmd
+        text: Reference
+      - text: Vignettes
+        menu:
+          - href: notebooks/walkthrough.qmd
+            text: Walkthrough of the package
+          - href: notebooks/chop_labels.qmd
+            text: Details on chopping functions
+  repo-url: https://github.com/const-ae/polarstation
+  repo-actions: [issue]
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    css: styles.css

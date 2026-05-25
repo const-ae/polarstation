@@ -1,0 +1,79 @@
+package: polarstation
+
+setup: |
+  import polars as pl
+  import polarstation
+  import IPython
+  ip = IPython.get_ipython()
+  if ip:
+      for t in (pl.DataFrame, pl.Series):
+          ip.display_formatter.formatters["text/html"].for_type(t, lambda _: None)
+
+sections:
+  - title: "Frame helpers"
+    overview: true
+    desc: "Methods on the `.ps` namespace, available on both `DataFrame` and `LazyFrame`."
+    contents:
+      - display: df.ps.with_columns
+        path: dataframe_extensions.PolarstationDataFrame.with_columns
+      - display: Expr.ps.apply
+        path: expr_extensions.PolarstationExpression.apply
+
+  - title: "ps_enum — Enum column helpers"
+    overview: true
+    desc: "Methods on the `.ps_enum` expression namespace for working with categorical / Enum columns."
+    contents:
+      - display: Expr.ps_enum.make
+        path: enum_extensions.PolarstationEnumExpression.make
+      - display: Expr.ps_enum.lump
+        path: enum_extensions.PolarstationEnumExpression.lump
+      - display: Expr.ps_enum.relabel
+        path: enum_extensions.PolarstationEnumExpression.relabel
+      - display: Expr.ps_enum.rev
+        path: enum_extensions.PolarstationEnumExpression.rev
+      - display: Expr.ps_enum.infreq
+        path: enum_extensions.PolarstationEnumExpression.infreq
+      - display: Expr.ps_enum.reorder
+        path: enum_extensions.PolarstationEnumExpression.reorder
+      - display: Expr.ps_enum.set_categories
+        path: enum_extensions.PolarstationEnumExpression.set_categories
+      - display: Expr.ps_enum.add_categories
+        path: enum_extensions.PolarstationEnumExpression.add_categories
+      - display: Expr.ps_enum.drop_unused
+        path: enum_extensions.PolarstationEnumExpression.drop_unused
+      - display: Expr.ps_enum.missing_to_category
+        path: enum_extensions.PolarstationEnumExpression.missing_to_category
+      - display: Expr.ps_enum.category_to_missing
+        path: enum_extensions.PolarstationEnumExpression.category_to_missing
+
+  - title: "ps_chop — Binning helpers"
+    overview: true
+    desc: "Methods on the `.ps_chop` expression namespace for cutting a column into labelled intervals."
+    contents:
+      - display: Expr.ps_chop.chop
+        path: chop_extensions.PolarstationChopExpression.chop
+      - display: Expr.ps_chop.width
+        path: chop_extensions.PolarstationChopExpression.width
+      - display: Expr.ps_chop.n_elements
+        path: chop_extensions.PolarstationChopExpression.n_elements
+      - display: Expr.ps_chop.n_groups
+        path: chop_extensions.PolarstationChopExpression.n_groups
+      - display: Expr.ps_chop.quantiles
+        path: chop_extensions.PolarstationChopExpression.quantiles
+
+  - title: "ps_str — String column helpers"
+    overview: true
+    desc: "Methods on the `.ps_str` expression namespace."
+    contents:
+      - display: Expr.ps_str.count
+        path: string_extensions.PolarstationStringExpression.count
+      - display: Expr.ps_str.wrap
+        path: string_extensions.PolarstationStringExpression.wrap
+      - display: Expr.ps_str.trunc
+        path: string_extensions.PolarstationStringExpression.trunc
+
+  - title: "Internals"
+    desc: "Building blocks for writing custom `FrameExpr`."
+    contents:
+      - display: FrameExpr
+        path: frame_expr.FrameExpr
