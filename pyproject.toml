@@ -1,6 +1,6 @@
 [project]
 name = "polarstation"
-version = "0.1.1"
+version = "0.1.2"
 description = "Tidy helper functions for polars that can peek at the full data."
 readme = "README.md"
 authors = [
@@ -29,6 +29,10 @@ dev = [
     "plotnine>=0.15.4",
     "pyarrow>=24.0.0",
 ]
+
+[project.urls]
+Documentation = "https://const-ae.github.io/polarstation/"
+Repository = "https://github.com/const-ae/polarstation"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
