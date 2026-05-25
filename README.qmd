@@ -323,6 +323,30 @@ unlocks operations like deriving Enum categories from the data, lumping rare lev
 or reordering factor levels by a summary statistic, while keeping the rest of your
 pipeline lazy.
 
+### How FrameExpr stays efficient
+
+`ps.with_columns` resolves each `FrameExpr` in two phases.  First it runs a small
+aggregation (e.g. `unique().sort()` to discover categories) against the *current*
+lazy plan — so any preceding `.filter()` or `.select()` is already embedded and
+Polars' predicate/projection pushdown keeps the peek cheap.  Then it uses the result
+to build a concrete `pl.Expr` (e.g. `.cast(pl.Enum(["a", "b", "c"]))`) that goes back
+into the lazy plan and executes normally.
+
+```python
+# Only the filtered rows are scanned for category discovery;
+# the cast itself remains lazy.
+lf = pl.scan_parquet("events.parquet")
+result = (
+    lf.filter(pl.col("country") == "DE")
+      .ps.with_columns(pl.col("status").ps_enum.make())
+      .filter(pl.col("status") == "active")
+      .collect()
+)
+```
+
+See the `FrameExpr` docstring for the full explanation, including when the peek is
+larger and notes on parallel evaluation.
+
 ---
 
 ## License

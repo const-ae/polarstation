@@ -6,7 +6,44 @@ import polars as pl
 
 
 class FrameExpr:
-  """An expression that requires a LazyFrame context to resolve into a list of pl.Expr."""
+  """An expression that requires a LazyFrame context to resolve into a list of pl.Expr.
+
+  A plain ``pl.Expr`` is insufficient for operations like ``ps_enum.make()`` or
+  ``ps_chop.chop()`` because Polars needs to know the output dtype (e.g. the exact
+  ``pl.Enum([...])`` category list) at plan-construction time — before any data is
+  seen.  ``FrameExpr`` defers that resolution to a two-phase execution model:
+
+  **Phase 1 — peek**
+      ``ps.with_columns`` calls ``resolve(lf)`` with the *current* ``LazyFrame``.
+      The resolver runs a small aggregation (e.g. ``unique().sort()`` for category
+      discovery, a handful of quantiles for binning) and collects it.  Because the
+      resolver receives the full lazy plan up to that point, any preceding
+      ``.filter()`` or ``.select()`` calls are already embedded and Polars'
+      predicate/projection pushdown applies — only the relevant rows and columns are
+      scanned.
+
+  **Phase 2 — expression**
+      The resolver uses the aggregation result to construct a concrete ``pl.Expr``
+      with all dtype information baked in (e.g. ``pl.col("x").cast(pl.Enum(["a",
+      "b", "c"]))``).  This expression is inserted back into the lazy plan and
+      executed lazily together with all subsequent operations.
+
+  When the peek is larger:
+      Some operations — ``ps_chop.n_elements`` and ``ps_enum.reorder`` — must
+      collect the full sorted column or a group aggregation to determine
+      breakpoints.  These are genuinely O(N) collects, but they still only
+      materialise a small result (unique values or group statistics), not the whole
+      DataFrame.
+
+  Note on parallel evaluation:
+      When multiple ``FrameExpr`` columns appear in one ``ps.with_columns(...)``
+      call, each resolver runs sequentially at the Python level.  This is an
+      artifact of the current Python implementation; a future native Polars plugin
+      could expose the resolvers to the query engine and allow parallel evaluation.
+      In the meantime, prefer placing independent ``FrameExpr`` columns in the
+      *same* ``ps.with_columns(...)`` call rather than chaining multiple calls, so
+      each lazy plan (with its pushdown) is only materialised once.
+  """
 
   def __init__(self, col_expr: pl.Expr, resolver: Callable[[pl.LazyFrame], list[pl.Expr]]):
     self._col_expr = col_expr
