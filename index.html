@@ -171,6 +171,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#how-frameexpr-stays-efficient" id="toc-how-frameexpr-stays-efficient" class="nav-link" data-scroll-target="#how-frameexpr-stays-efficient">How FrameExpr stays efficient</a></li>
   <li><a href="#dev-notes" id="toc-dev-notes" class="nav-link" data-scroll-target="#dev-notes">Dev Notes</a></li>
   </ul></li>
+  <li><a href="#acknowledgements" id="toc-acknowledgements" class="nav-link" data-scroll-target="#acknowledgements">Acknowledgements</a></li>
   <li><a href="#license" id="toc-license" class="nav-link" data-scroll-target="#license">License</a></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/const-ae/polarstation/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -209,7 +210,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="quick-start" class="level2">
 <h2 class="anchored" data-anchor-id="quick-start">Quick start</h2>
-<div id="f49a1324" class="cell" data-execution_count="2">
+<div id="dad788a5" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polarstation   <span class="co"># registers extension functions for polars</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -239,7 +240,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 Enum(categories=['bird', 'dog', 'cow'])</code></pre>
 </div>
 </div>
-<p><code>ps.with_columns</code> is a drop-in replacement for <code>with_columns</code> from polars that can handle some additional use-case like functions that need to peek at the full data for evaluation. It works efficiently identically on both <code>DataFrame</code> and <code>LazyFrame</code>.</p>
+<p><code>ps.with_columns</code> is a drop-in replacement for <code>with_columns</code> from polars that can handle some additional use cases like functions that need to peek at the full data for evaluation. It works efficiently on both <code>DataFrame</code> and <code>LazyFrame</code>.</p>
 </section>
 <section id="details" class="level2">
 <h2 class="anchored" data-anchor-id="details">Details</h2>
@@ -263,10 +264,23 @@ Enum(categories=['bird', 'dog', 'cow'])</code></pre>
 <p>To build the documentation run:</p>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run quarto render</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>and then in a separate terminal</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run quarto previe</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run quarto preview</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>To re-render the README.md run</p>
 <pre><code>quarto render README.qmd --to gfm</code></pre>
+<p>To upload to pypi run</p>
+<pre><code>uv build
+uv publish</code></pre>
 </section>
+</section>
+<section id="acknowledgements" class="level2">
+<h2 class="anchored" data-anchor-id="acknowledgements">Acknowledgements</h2>
+<p>This package stands on the shoulders of several excellent projects:</p>
+<ul>
+<li>The <a href="https://tidyverse.org/">tidyverse</a> team for establishing the tidy data philosophy and the vocabulary that shapes this package’s design.</li>
+<li>Hadley Wickham and the <a href="https://forcats.tidyverse.org/">forcats</a> authors for the factor-manipulation functions that directly inspired the <code>ps_enum</code> namespace.</li>
+<li>David Hugh-Jones for <a href="https://hughjonesd.github.io/santoku/">santoku</a>, which inspired the <code>ps_chop</code> functions.</li>
+<li>Allison Horst, Alison Hill, and Kristen Gorman for the <a href="https://allisonhorst.github.io/palmerpenguins/">palmerpenguins</a> dataset used in the examples and walkthrough.</li>
+</ul>
 </section>
 <section id="license" class="level2">
 <h2 class="anchored" data-anchor-id="license">License</h2>
@@ -349,7 +363,7 @@ Enum(categories=['bird', 'dog', 'cow'])</code></pre>
     }
       var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
       var mailtoRegex = new RegExp(/^mailto:/);
-        var filterRegex = new RegExp('/' + window.location.host + '/');
+        var filterRegex = new RegExp("https:\/\/const-ae\.github\.io\/polarstation\/");
       var isInternal = (href) => {
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
