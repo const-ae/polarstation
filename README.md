@@ -107,6 +107,21 @@ To re-render the README.md run
 
     quarto render README.qmd --to gfm
 
+## Acknowledgements
+
+This package stands on the shoulders of several excellent projects:
+
+- The [tidyverse](https://tidyverse.org/) team for establishing the tidy
+  data philosophy and the vocabulary that shapes this package’s design.
+- Hadley Wickham and the [forcats](https://forcats.tidyverse.org/)
+  authors for the factor-manipulation functions that directly inspired
+  the `ps_enum` namespace.
+- David Hugh-Jones for [santoku](https://hughjonesd.github.io/santoku/),
+  which inspired the `ps_chop` functions.
+- Allison Horst, Alison Hill, and Kristen Gorman for the
+  [palmerpenguins](https://allisonhorst.github.io/palmerpenguins/)
+  dataset used in the examples and walkthrough.
+
 ## License
 
 MIT
