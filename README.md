@@ -182,7 +182,7 @@ animals.ps.with_columns(
 )["animal"].dtype
 ```
 
-    Enum(categories=['bird', 'dog', 'cat'])
+    Enum(categories=['dog', 'cat', 'bird'])
 
 ### `infreq(descending=False)`
 
@@ -250,7 +250,7 @@ animals.ps.with_columns(
 )["animal"].dtype
 ```
 
-    Enum(categories=['cat', 'dog', 'rabbit', 'bird'])
+    Enum(categories=['bird', 'cat', 'rabbit', 'dog'])
 
 ### `drop_unused()`
 
@@ -277,11 +277,11 @@ print(with_na["animal"].to_list())
 back = with_na.ps.with_columns(
     pl.col("animal").ps_enum.category_to_missing("unknown")
 )
-print(back["animal"].null_count(), "nulls restored")
+print(back["animal"].to_list())
 ```
 
     ['cat', 'dog', 'unknown', 'bird', 'bird', 'bird']
-    1 nulls restored
+    ['cat', 'dog', None, 'bird', 'bird', 'bird']
 
 ------------------------------------------------------------------------
 
@@ -289,7 +289,8 @@ print(back["animal"].null_count(), "nulls restored")
 
 ### `count(pattern="")`
 
-Count non-overlapping regex matches per string.
+Count non-overlapping regex matches per string. This just a wrapper
+around `pl.Expr.str.count_matches()` and will probably deleted soon.
 
 ``` python
 pl.DataFrame({"x": ["hello world", "foo bar baz", ""]}).select(
@@ -351,6 +352,151 @@ pl.DataFrame({"x": ["short", "a much longer string"]}).select(
 
 ------------------------------------------------------------------------
 
+## `ps_chop` — Bin a column into intervals
+
+These functions must be executed from within `ps.with_columns`. They
+return an `Enum`-typed column whose category names are the bin labels.
+
+``` python
+scores = pl.DataFrame({"score": [12, 45, 67, 89, 95, 23, 78]})
+```
+
+### `chop(breaks, left_closed=True, extend=True, fmt=None, labels=None)`
+
+Cut at explicit breakpoints.
+
+``` python
+scores.ps.with_columns(
+    pl.col("score").ps_chop.chop([40, 70], fmt=".0f").alias("grade")
+)
+```
+
+    shape: (7, 2)
+    ┌───────┬──────────┐
+    │ score ┆ grade    │
+    │ ---   ┆ ---      │
+    │ i64   ┆ enum     │
+    ╞═══════╪══════════╡
+    │ 12    ┆ (-∞, 39] │
+    │ 45    ┆ [40, 69] │
+    │ 67    ┆ [40, 69] │
+    │ 89    ┆ [70, +∞) │
+    │ 95    ┆ [70, +∞) │
+    │ 23    ┆ (-∞, 39] │
+    │ 78    ┆ [70, +∞) │
+    └───────┴──────────┘
+
+Integer columns use fully-closed `[a, b]` notation; single-element bins
+are written as `{x}`.
+
+### `width(size, start=None, left_closed=True, extend=False, fmt=None, labels=None)`
+
+Cut into equal-width bins.
+
+``` python
+scores.ps.with_columns(
+    pl.col("score").ps_chop.width(25).alias("band")
+)
+```
+
+    shape: (7, 2)
+    ┌───────┬──────────┐
+    │ score ┆ band     │
+    │ ---   ┆ ---      │
+    │ i64   ┆ enum     │
+    ╞═══════╪══════════╡
+    │ 12    ┆ [12, 36] │
+    │ 45    ┆ [37, 61] │
+    │ 67    ┆ [62, 86] │
+    │ 89    ┆ [87, 95] │
+    │ 95    ┆ [87, 95] │
+    │ 23    ┆ [12, 36] │
+    │ 78    ┆ [62, 86] │
+    └───────┴──────────┘
+
+For temporal columns `size` must be a `datetime.timedelta`.
+
+### `n_elements(n, tail="split", left_closed=True, extend=False, fmt="g", labels=None)`
+
+Cut into groups of `n` observations (sorted order). Ties are never split
+— the boundary advances to the next distinct value. `tail="merge"`
+absorbs a short final group into the preceding one.
+
+``` python
+scores.ps.with_columns(
+    pl.col("score").ps_chop.n_elements(3).alias("tercile")
+)
+```
+
+    shape: (7, 2)
+    ┌───────┬──────────┐
+    │ score ┆ tercile  │
+    │ ---   ┆ ---      │
+    │ i64   ┆ enum     │
+    ╞═══════╪══════════╡
+    │ 12    ┆ [12, 66] │
+    │ 45    ┆ [12, 66] │
+    │ 67    ┆ [67, 94] │
+    │ 89    ┆ [67, 94] │
+    │ 95    ┆ {95}     │
+    │ 23    ┆ [12, 66] │
+    │ 78    ┆ [67, 94] │
+    └───────┴──────────┘
+
+### `n_groups(k, raw=True, left_closed=True, extend=False, fmt=None, labels=None)`
+
+Cut into `k` equal-count groups using quantile boundaries. With
+`raw=False` the labels show percentages instead of actual values.
+
+``` python
+scores.ps.with_columns(
+    pl.col("score").ps_chop.n_groups(3).alias("tertile")
+)
+```
+
+    shape: (7, 2)
+    ┌───────┬──────────┐
+    │ score ┆ tertile  │
+    │ ---   ┆ ---      │
+    │ i64   ┆ enum     │
+    ╞═══════╪══════════╡
+    │ 12    ┆ [12, 44] │
+    │ 45    ┆ [45, 77] │
+    │ 67    ┆ [45, 77] │
+    │ 89    ┆ [78, 95] │
+    │ 95    ┆ [78, 95] │
+    │ 23    ┆ [12, 44] │
+    │ 78    ┆ [78, 95] │
+    └───────┴──────────┘
+
+### `quantiles(probs, raw=False, left_closed=True, extend=False, fmt=None, labels=None)`
+
+Cut at specific quantile probabilities. Default labels show percentages;
+pass `raw=True` for actual cut values.
+
+``` python
+scores.ps.with_columns(
+    pl.col("score").ps_chop.quantiles([0.25, 0.75]).alias("iqr_group")
+)
+```
+
+    shape: (7, 2)
+    ┌───────┬─────────────┐
+    │ score ┆ iqr_group   │
+    │ ---   ┆ ---         │
+    │ i64   ┆ enum        │
+    ╞═══════╪═════════════╡
+    │ 12    ┆ [0%, 25%)   │
+    │ 45    ┆ [25%, 75%)  │
+    │ 67    ┆ [25%, 75%)  │
+    │ 89    ┆ [75%, 100%] │
+    │ 95    ┆ [75%, 100%] │
+    │ 23    ┆ [0%, 25%)   │
+    │ 78    ┆ [25%, 75%)  │
+    └───────┴─────────────┘
+
+------------------------------------------------------------------------
+
 ## `ps.apply` — Escape hatch
 
 When you need the full DataFrame context to build an expression, use
@@ -367,9 +513,6 @@ pl.DataFrame({"x": [1.0, 2.0, 3.0, 4.0, 5.0]}).ps.with_columns(
     pl.col("x").ps.apply(center_scale)
 )
 ```
-
-    /Users/ahlmanne/prog/python/polarstation/src/polarstation/expr_extensions.py:22: PerformanceWarning: Determining the column names of a LazyFrame requires resolving its schema, which is a potentially expensive operation. Use `LazyFrame.collect_schema().names()` to get the column names without this warning.
-      return [fn(df, col) for col in df.select(expr).columns]
 
     shape: (5, 1)
     ┌───────────┐
@@ -391,6 +534,31 @@ data (schema or a small aggregation) before it resolves into a regular
 Polars expression. This unlocks operations like deriving Enum categories
 from the data, lumping rare levels, or reordering factor levels by a
 summary statistic, while keeping the rest of your pipeline lazy.
+
+### How FrameExpr stays efficient
+
+`ps.with_columns` resolves each `FrameExpr` in two phases. First it runs
+a small aggregation (e.g. `unique().sort()` to discover categories)
+against the *current* lazy plan — so any preceding `.filter()` or
+`.select()` is already embedded and Polars’ predicate/projection
+pushdown keeps the peek cheap. Then it uses the result to build a
+concrete `pl.Expr` (e.g. `.cast(pl.Enum(["a", "b", "c"]))`) that goes
+back into the lazy plan and executes normally.
+
+``` python
+# Only the filtered rows are scanned for category discovery;
+# the cast itself remains lazy.
+lf = pl.scan_parquet("events.parquet")
+result = (
+    lf.filter(pl.col("country") == "DE")
+      .ps.with_columns(pl.col("status").ps_enum.make())
+      .filter(pl.col("status") == "active")
+      .collect()
+)
+```
+
+See the `FrameExpr` docstring for the full explanation, including when
+the peek is larger and notes on parallel evaluation.
 
 ------------------------------------------------------------------------
 
