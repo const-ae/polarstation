@@ -16,6 +16,11 @@ wheels/
 # Quarto
 notebooks/.quarto/
 notebooks/*.html
+_site/
+reference/
+objects.json
 
 # Claude
 .claude/*
+/.quarto/
+**/*.quarto_ipynb
