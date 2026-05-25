@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ -f README.qmd ] && [ -f README.md ] && [ README.qmd -nt README.md ]; then
+    echo "Error: README.qmd is newer than README.md."
+    echo "Regenerate it with: quarto render README.qmd --to gfm"
+    exit 1
+fi
