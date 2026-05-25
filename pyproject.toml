@@ -1,7 +1,7 @@
 [project]
 name = "polarstation"
 version = "0.1.0"
-description = "Tidy functions for polars"
+description = "Tidy helper functions for polars that can peek at the full data."
 readme = "README.md"
 authors = [
     { name = "const-ae", email = "artjom31415@googlemail.com" }
