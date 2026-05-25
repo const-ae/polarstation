@@ -26,13 +26,15 @@ import polars as pl
 import polarstation   # registers extension functions for polars
 
 df = pl.DataFrame({
-    "animal": ["cat", "dog", None, "bird", "dog" , "bird", "bird"],
-    "weight": [4.2, 8.1, 7.5, 0.5, 0.6, 0.4, None],
-})
-
-df.ps.with_columns(
-    pl.col("animal").ps_enum.make().ps_enum.infreq()
+    "animal": ["dog", "dog", None, "bird", "cow" , "bird", "bird"],
+    "weight": [12.2, 8.1, 7.5, 0.5, 460, 0.4, None],
+}).ps.with_columns(
+    pl.col("animal").ps_enum.make().ps_enum.reorder(by='weight')
 )
+
+print(df)
+
+print(df['animal'].dtype)
 ```
 
     shape: (7, 2)
@@ -41,14 +43,15 @@ df.ps.with_columns(
     │ ---    ┆ ---    │
     │ enum   ┆ f64    │
     ╞════════╪════════╡
-    │ cat    ┆ 4.2    │
+    │ dog    ┆ 12.2   │
     │ dog    ┆ 8.1    │
     │ null   ┆ 7.5    │
     │ bird   ┆ 0.5    │
-    │ dog    ┆ 0.6    │
+    │ cow    ┆ 460.0  │
     │ bird   ┆ 0.4    │
     │ bird   ┆ null   │
     └────────┴────────┘
+    Enum(categories=['bird', 'dog', 'cow'])
 
 `ps.with_columns` is a drop-in replacement for `with_columns` from
 polars that can handle some additional use-case like functions that need
@@ -63,8 +66,8 @@ These function must be executed from within `ps.with_columns`.
 
 ``` python
 animals = pl.DataFrame({
-    "animal": ["cat", "dog", None, "bird", "bird", "bird", ],
-    "weight": [4.2, 8.1, 7.5, 0.5, 0.12, None],
+    "animal": ["dog", None, "bird", "cow" , "bird"],
+    "weight": [12.2, 7.5, 0.5, 460, None],
 })
 ```
 
@@ -78,17 +81,16 @@ strings as `null`.
 animals.ps.with_columns(pl.col("animal").ps_enum.make())
 ```
 
-    shape: (6, 2)
+    shape: (5, 2)
     ┌────────┬────────┐
     │ animal ┆ weight │
     │ ---    ┆ ---    │
     │ enum   ┆ f64    │
     ╞════════╪════════╡
-    │ cat    ┆ 4.2    │
-    │ dog    ┆ 8.1    │
+    │ dog    ┆ 12.2   │
     │ null   ┆ 7.5    │
     │ bird   ┆ 0.5    │
-    │ bird   ┆ 0.12   │
+    │ cow    ┆ 460.0  │
     │ bird   ┆ null   │
     └────────┴────────┘
 
@@ -112,17 +114,16 @@ animals.ps.with_columns(
 )
 ```
 
-    shape: (6, 2)
+    shape: (5, 2)
     ┌────────┬────────┐
     │ animal ┆ weight │
     │ ---    ┆ ---    │
     │ enum   ┆ f64    │
     ╞════════╪════════╡
-    │ cat    ┆ 4.2    │
-    │ Other  ┆ 8.1    │
+    │ dog    ┆ 12.2   │
     │ null   ┆ 7.5    │
     │ bird   ┆ 0.5    │
-    │ bird   ┆ 0.12   │
+    │ Other  ┆ 460.0  │
     │ bird   ┆ null   │
     └────────┴────────┘
 
@@ -133,21 +134,20 @@ Rename categories. Pass a `dict` or a callable. With `strict=True`
 
 ``` python
 animals.ps.with_columns(
-    pl.col("animal").ps_enum.make().ps_enum.relabel({"bird": "Bird", "cat": "Cat"})
+    pl.col("animal").ps_enum.make().ps_enum.relabel({"bird": "Bird", "cow": "Cow"})
 )
 ```
 
-    shape: (6, 2)
+    shape: (5, 2)
     ┌────────┬────────┐
     │ animal ┆ weight │
     │ ---    ┆ ---    │
     │ enum   ┆ f64    │
     ╞════════╪════════╡
-    │ Cat    ┆ 4.2    │
-    │ dog    ┆ 8.1    │
+    │ dog    ┆ 12.2   │
     │ null   ┆ 7.5    │
     │ Bird   ┆ 0.5    │
-    │ Bird   ┆ 0.12   │
+    │ Cow    ┆ 460.0  │
     │ Bird   ┆ null   │
     └────────┴────────┘
 
@@ -158,17 +158,16 @@ animals.ps.with_columns(
 )
 ```
 
-    shape: (6, 2)
+    shape: (5, 2)
     ┌────────┬────────┐
     │ animal ┆ weight │
     │ ---    ┆ ---    │
     │ enum   ┆ f64    │
     ╞════════╪════════╡
-    │ CAT    ┆ 4.2    │
-    │ DOG    ┆ 8.1    │
+    │ DOG    ┆ 12.2   │
     │ null   ┆ 7.5    │
     │ BIRD   ┆ 0.5    │
-    │ BIRD   ┆ 0.12   │
+    │ COW    ┆ 460.0  │
     │ BIRD   ┆ null   │
     └────────┴────────┘
 
@@ -182,7 +181,7 @@ animals.ps.with_columns(
 )["animal"].dtype
 ```
 
-    Enum(categories=['dog', 'cat', 'bird'])
+    Enum(categories=['dog', 'cow', 'bird'])
 
 ### `infreq(descending=False)`
 
@@ -195,7 +194,7 @@ animals.ps.with_columns(
 )["animal"].dtype
 ```
 
-    Enum(categories=['bird', 'dog', 'cat'])
+    Enum(categories=['bird', 'dog', 'cow'])
 
 ### `reorder(by, agg=pl.Expr.median, descending=False, nulls_last=False, missing="drop")`
 
@@ -208,7 +207,7 @@ animals.ps.with_columns(
 )["animal"].dtype
 ```
 
-    Enum(categories=['bird', 'cat', 'dog'])
+    Enum(categories=['bird', 'dog', 'cow'])
 
 `missing` controls what happens to categories whose aggregate is `null`:
 `"drop"` (default) removes them from the Enum; `"last"` / `"first"` keep
@@ -221,21 +220,20 @@ become `null`.
 
 ``` python
 animals.ps.with_columns(
-    pl.col("animal").ps_enum.make().ps_enum.set_categories(["cat", "dog"])
+    pl.col("animal").ps_enum.make().ps_enum.set_categories(["cow", "dog"])
 )
 ```
 
-    shape: (6, 2)
+    shape: (5, 2)
     ┌────────┬────────┐
     │ animal ┆ weight │
     │ ---    ┆ ---    │
     │ enum   ┆ f64    │
     ╞════════╪════════╡
-    │ cat    ┆ 4.2    │
-    │ dog    ┆ 8.1    │
+    │ dog    ┆ 12.2   │
     │ null   ┆ 7.5    │
     │ null   ┆ 0.5    │
-    │ null   ┆ 0.12   │
+    │ cow    ┆ 460.0  │
     │ null   ┆ null   │
     └────────┴────────┘
 
@@ -250,7 +248,7 @@ animals.ps.with_columns(
 )["animal"].dtype
 ```
 
-    Enum(categories=['bird', 'cat', 'rabbit', 'dog'])
+    Enum(categories=['bird', 'cow', 'rabbit', 'dog'])
 
 ### `drop_unused()`
 
@@ -280,8 +278,8 @@ back = with_na.ps.with_columns(
 print(back["animal"].to_list())
 ```
 
-    ['cat', 'dog', 'unknown', 'bird', 'bird', 'bird']
-    ['cat', 'dog', None, 'bird', 'bird', 'bird']
+    ['dog', 'unknown', 'bird', 'cow', 'bird']
+    ['dog', None, 'bird', 'cow', 'bird']
 
 ------------------------------------------------------------------------
 

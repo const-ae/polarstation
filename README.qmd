@@ -41,13 +41,13 @@ import polars as pl
 import polarstation   # registers extension functions for polars
 
 df = pl.DataFrame({
-    "animal": ["cat", "dog", None, "bird", "dog" , "bird", "bird"],
-    "weight": [4.2, 8.1, 7.5, 0.5, 0.6, 0.4, None],
-})
-
-df.ps.with_columns(
-    pl.col("animal").ps_enum.make().ps_enum.infreq()
+    "animal": ["dog", "dog", None, "bird", "cow" , "bird", "bird"],
+    "weight": [12.2, 8.1, 7.5, 0.5, 460, 0.4, None],
+}).ps.with_columns(
+    pl.col("animal").ps_enum.make().ps_enum.reorder(by='weight')
 )
+print(df)
+print(df['animal'].dtype)
 ```
 
 `ps.with_columns` is a drop-in replacement for `with_columns` from polars
@@ -61,8 +61,8 @@ These function must be executed from within `ps.with_columns`.
 
 ```{python}
 animals = pl.DataFrame({
-    "animal": ["cat", "dog", None, "bird", "bird", "bird", ],
-    "weight": [4.2, 8.1, 7.5, 0.5, 0.12, None],
+    "animal": ["dog", None, "bird", "cow" , "bird"],
+    "weight": [12.2, 7.5, 0.5, 460, None],
 })
 ```
 
@@ -88,7 +88,7 @@ Keep the `n` most frequent categories; collapse the rest into `other_label`.
 
 ```{python}
 animals.ps.with_columns(
-    pl.col("animal").ps_enum.make().ps_enum.lump(n=2)
+    pl.col("animal").ps_enum.make().ps_enum.lump(n=1)
 )
 ```
 
@@ -99,7 +99,7 @@ raises if any dict key is not an existing category.
 
 ```{python}
 animals.ps.with_columns(
-    pl.col("animal").ps_enum.make().ps_enum.relabel({"bird": "Bird", "cat": "Cat"})
+    pl.col("animal").ps_enum.make().ps_enum.relabel({"bird": "Bird", "cow": "Cow"})
 )
 ```
 
@@ -151,7 +151,7 @@ Replace the category list entirely.  Values not present in `categories` become `
 
 ```{python}
 animals.ps.with_columns(
-    pl.col("animal").ps_enum.make().ps_enum.set_categories(["cat", "dog"])
+    pl.col("animal").ps_enum.make().ps_enum.set_categories(["cow", "dog"])
 )
 ```
 
