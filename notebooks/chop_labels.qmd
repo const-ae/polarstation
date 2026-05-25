@@ -1,6 +1,5 @@
 ---
 title: "chop — label and struct reference"
-format: md
 jupyter: python3
 ---
 
@@ -10,6 +9,12 @@ jupyter: python3
 import datetime
 import polars as pl
 import polarstation
+
+import IPython
+ip = IPython.get_ipython()
+if ip:
+    for t in (pl.DataFrame, pl.Series):
+        ip.display_formatter.formatters["text/html"].for_type(t, lambda _: None)
 ```
 
 `chop(breaks, ...)` bins a column at explicit breakpoints.
@@ -24,8 +29,7 @@ All examples use a single break so the output is always two bins.
 #| output: false
 def show(df, col_name, expr):
     s = df.ps.with_columns(expr)[col_name]
-    cats = s.dtype.categories.to_list()
-    return pl.DataFrame({"bin": cats})
+    return s.dtype
 ```
 
 ## Dtype families
@@ -49,12 +53,16 @@ Float labels treat the break as a mathematical boundary; the interval that
 
 ```{python}
 df_f = pl.DataFrame({"x": [1.0, 3.0, 7.0, 10.0]})
-pl.concat([
-    show(df_f, "x", pl.col("x").ps_chop.chop([5.0])).rename({"bin": "ext=T lc=T"}),
-    show(df_f, "x", pl.col("x").ps_chop.chop([5.0], left_closed=False)).rename({"bin": "ext=T lc=F"}),
-    show(df_f, "x", pl.col("x").ps_chop.chop([5.0], extend=False)).rename({"bin": "ext=F lc=T"}),
-    show(df_f, "x", pl.col("x").ps_chop.chop([5.0], extend=False, left_closed=False)).rename({"bin": "ext=F lc=F"}),
-], how="horizontal")
+show(df_f, "x", pl.col("x").ps_chop.chop([5.0], extend=True, left_closed=True))
+```
+```{python}
+show(df_f, "x", pl.col("x").ps_chop.chop([5.0], extend=True, left_closed=False))
+```
+```{python}
+show(df_f, "x", pl.col("x").ps_chop.chop([5.0], extend=False, left_closed=True))
+```
+```{python}
+show(df_f, "x", pl.col("x").ps_chop.chop([5.0], extend=False, left_closed=False))
 ```
 
 :::
@@ -84,12 +92,16 @@ discrete range, and use `{x}` for single-element bins.
 
 ```{python}
 df_i = pl.DataFrame({"x": pl.Series([1, 3, 7, 10], dtype=pl.Int32)})
-pl.concat([
-    show(df_i, "x", pl.col("x").ps_chop.chop([5])).rename({"bin": "ext=T lc=T"}),
-    show(df_i, "x", pl.col("x").ps_chop.chop([5], left_closed=False)).rename({"bin": "ext=T lc=F"}),
-    show(df_i, "x", pl.col("x").ps_chop.chop([5], extend=False)).rename({"bin": "ext=F lc=T"}),
-    show(df_i, "x", pl.col("x").ps_chop.chop([5], extend=False, left_closed=False)).rename({"bin": "ext=F lc=F"}),
-], how="horizontal")
+show(df_i, "x", pl.col("x").ps_chop.chop([5], extend=True, left_closed=True))
+```
+```{python}
+show(df_i, "x", pl.col("x").ps_chop.chop([5], extend=True, left_closed=False))
+```
+```{python}
+show(df_i, "x", pl.col("x").ps_chop.chop([5], extend=False, left_closed=True))
+```
+```{python}
+show(df_i, "x", pl.col("x").ps_chop.chop([5], extend=False, left_closed=False))
 ```
 
 :::
@@ -116,10 +128,10 @@ sorted category list (or the Enum's defined order).
 
 ```{python}
 df_s = pl.DataFrame({"x": ["cat", "dog", "fish", "gull"]})
-pl.concat([
-    show(df_s, "x", pl.col("x").ps_chop.chop(["dog"])).rename({"bin": "lc=True"}),
-    show(df_s, "x", pl.col("x").ps_chop.chop(["dog"], left_closed=False)).rename({"bin": "lc=False"}),
-], how="horizontal")
+show(df_s, "x", pl.col("x").ps_chop.chop(["dog"], left_closed=True))
+```
+```{python}
+show(df_s, "x", pl.col("x").ps_chop.chop(["dog"], left_closed=False))
 ```
 
 :::
@@ -163,10 +175,10 @@ min / max. Labels use `str()` of each value by default.
 ```{python}
 D = datetime.date
 df_d = pl.DataFrame({"d": [D(2020,1,1), D(2020,4,1), D(2020,9,1), D(2020,12,1)]})
-pl.concat([
-    show(df_d, "d", pl.col("d").ps_chop.chop([D(2020,7,1)])).rename({"bin": "lc=True"}),
-    show(df_d, "d", pl.col("d").ps_chop.chop([D(2020,7,1)], left_closed=False)).rename({"bin": "lc=False"}),
-], how="horizontal")
+show(df_d, "d", pl.col("d").ps_chop.chop([D(2020,7,1)], left_closed=True))
+```
+```{python}
+show(df_d, "d", pl.col("d").ps_chop.chop([D(2020,7,1)], left_closed=False))
 ```
 
 :::

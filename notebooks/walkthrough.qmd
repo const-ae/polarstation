@@ -1,0 +1,158 @@
+---
+title: Walkthrough
+---
+
+
+This package is an extension of polars and provides some helpful data science helpers.
+
+```{python}
+import polars as pl
+import polarstation
+```
+
+```{python}
+#| include: false
+%load_ext autoreload
+%autoreload 2
+import IPython
+ip = IPython.get_ipython()
+if ip:
+    for t in (pl.DataFrame, pl.Series):
+        ip.display_formatter.formatters["text/html"].for_type(t, lambda _: None)
+```
+
+`polarstation` provides a data frame / lazy frame namespace extension called `ps`. It provides a 
+single function called `with_columns` that works just like the regular `with_columns` but with
+some additional extension to enable more powerful expressions. For details, see the documentation
+of `FrameExpr`; but in practice all you need to remember that when you want to use the function
+from this package you should probably call them from within `df.ps.with_columns(...)`.
+
+# Let's meet the penguins from Palmer Archipelago, Antarctica
+
+First, thanks to Allison Horst for making this [dataset](https://allisonhorst.github.io/palmerpenguins/index.html) widely available.
+
+```{python}
+penguins = polarstation.make_example_data("penguins")
+penguins
+```
+
+The dataset contains three string columns which we want to convert to `pl.Enum`. Typically, 
+you would need to spell out each category, but this is tedious. Instead, you could use
+`pl.Categorical` which automatically detects the categories but those don't have an inherent order
+and sometimes behave surprisingly.
+```{python}
+penguins.with_columns(
+  pl.col('species').cast(pl.Enum(categories=['Adelie', 'Chinstrap', 'Gentoo']))
+).dtypes
+```
+
+This package provides `Expr.ps_enum` namespace that makes working with `Enum` columns easier, 
+including their creation
+```{python}
+# Note that we use .ps.with_columns
+penguins.ps.with_columns(
+  pl.col('species').ps_enum.make()
+).dtypes
+```
+
+Sometimes we want to change the order of the enum categories or explicitly deal with missing values.
+This is particularly helpful if we want to use `plotnine` for data visualization.
+
+```{python}
+from plotnine import *
+
+mod_penguins = penguins.ps.with_columns(
+    pl.col('species').ps_enum.make()
+  )
+
+(ggplot(mod_penguins, aes(x = 'species', y = 'body_mass_g')) +
+    geom_sina(aes(color = "sex"))
+)
+```
+
+Let's say we know that the missing values in the `sex` column are actually female penguins, 
+we can easily replace the missing values using the `ps_enum.missing_to_category` function
+
+```{python}
+(mod_penguins
+  .ps.with_columns(
+    pl.col('sex').ps_enum.make().ps_enum.missing_to_category('female')
+  )
+  .pipe(ggplot, aes(x = 'species', y = 'body_mass_g')) +
+    geom_sina(aes(color = "sex"))
+)
+```
+
+It is also easy to sort the categories so that they are increasing left to right. Here we make sure
+that the groups are sorted by their smallest value:
+
+```{python}
+mod_penguins.group_by('species').agg(pl.col('body_mass_g').min())
+```
+```{python}
+(mod_penguins
+  .ps.with_columns(
+    pl.col('species').ps_enum.reorder(by = "body_mass_g", agg=pl.Expr.min)
+  )
+  .pipe(ggplot, aes(x = 'species', y = 'body_mass_g')) +
+    geom_sina()
+)
+```
+
+It is also trivial to reverse the order:
+```{python}
+(mod_penguins
+  .ps.with_columns(
+    pl.col('species').ps_enum.reorder(by = "body_mass_g", agg=pl.Expr.min).ps_enum.rev()
+  )
+  .pipe(ggplot, aes(x = 'species', y = 'body_mass_g')) +
+    geom_sina()
+)
+```
+
+
+We can also combine the 'species' and 'island' columns and then lump together the rare combinations
+so that they are still the smallest group. For completeness, we will also sort the output by number of occurences
+```{python}
+def lump_lowfreq(df):
+    n = df['n'].reverse()
+    return (n.cum_sum() <= n.shift(-1, fill_value=0)).cum_min().reverse()
+
+(mod_penguins
+  .with_columns(
+    label = pl.col('species').cast(pl.String) + "-" + pl.col('island')
+  )
+  .ps.with_columns(
+    pl.col('label')
+      .ps_enum.make()
+      .ps_enum.lump(lump_fn = lump_lowfreq)
+      .ps_enum.infreq()
+  )
+  .pipe(ggplot, aes(x = 'label')) +
+    geom_bar()
+)
+```
+
+
+# Chopping
+
+The package also comes with a number of convenient `chop` which are extension of the `cut` function
+in polars. They are inspired by the [santoku](https://hughjonesd.github.io/santoku/reference/index.html)
+package in R.
+
+```{python}
+(mod_penguins
+  .ps.with_columns(
+    beak_size = pl.col('bill_length_mm').ps_chop.chop(breaks = [40, 50])
+  )
+  .group_by('beak_size', 'species').agg(pl.len()).sort('species', 'beak_size')
+)
+```
+
+In addition to `chop` there are also
+
+- `ps_chop.width` to cut into bins of equal width
+- `ps_chop.n_elements` to cut into bins with n elements
+- `ps_chop.n_groups` to cut into n equal sized groups
+- `ps_chop.quantiles` to cut with quantile breaks.
+

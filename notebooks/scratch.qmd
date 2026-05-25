@@ -20,14 +20,14 @@ penguins
 
 ```{python}
 (penguins
-  .with_columns(
-    tmp = pl.col('year') * 2,
-  )
   .ps.with_columns(
-    pl.col('species')
-      .cast(pl.Enum(['Gentoo', 'Adelie', 'Chinstrap']))
-      .dtype
-    )
+    width = pl.col('bill_length_mm').ps_chop.width(10),
+    n_elements = pl.col('bill_length_mm').ps_chop.n_elements(50, fmt="1.0f"),
+    n_groups_a = pl.col('bill_length_mm').ps_chop.n_groups(5, return_struct=False),
+    n_groups = pl.col('bill_length_mm').ps_chop.n_groups(5,return_struct=True),
+    quantiles = pl.col('bill_length_mm').ps_chop.quantiles(probs = [0.2, 0.6]),
+    chop = pl.col('bill_length_mm').ps_chop.chop(breaks=[35, 40, 50]),
+  )
 )
 ```
 
@@ -75,5 +75,18 @@ lf.head().collect()
   .collect()
   .get_column('group')
   .dtype
+)
+```
+
+
+```{python}
+import catfact as fct
+(penguins
+  .with_columns(
+    pl.col('species').cast(pl.Categorical)
+  )
+  .with_columns(
+    tmp = fct.infreq(pl.col('species'))
+  )
 )
 ```
