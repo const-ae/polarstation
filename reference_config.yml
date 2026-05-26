@@ -16,6 +16,8 @@ sections:
     contents:
       - display: df.ps.with_columns
         path: dataframe_extensions.PolarstationDataFrame.with_columns
+      - display: df.ps.select
+        path: dataframe_extensions.PolarstationDataFrame.select
       - display: Expr.ps.apply
         path: expr_extensions.PolarstationExpression.apply
 

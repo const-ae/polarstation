@@ -55,6 +55,34 @@ class PolarstationLazyFrame:
       lf = lf.with_columns(batch)
     return lf
 
+  def select(self, *exprs, **named_exprs) -> pl.LazyFrame:
+    """Like lf.select, but also accepts FrameExpr.
+
+    All FrameExprs peek at the lazy plan as it stands before this call, then a
+    single select is issued with all resolved expressions.
+    """
+    all_items = list(_flatten(exprs))
+
+    for key, val in named_exprs.items():
+      if isinstance(val, FrameExpr):
+        original = val
+        all_items.append(FrameExpr(
+          original._col_expr,
+          lambda lf, fe=original, k=key: [e.alias(k) for e in fe.resolve(lf)],
+        ))
+      elif isinstance(val, pl.Expr):
+        all_items.append(val.alias(key))
+      else:
+        all_items.append(pl.lit(val).alias(key))
+
+    resolved: list[pl.Expr] = []
+    for item in all_items:
+      if isinstance(item, FrameExpr):
+        resolved.extend(item.resolve(self._lf))
+      else:
+        resolved.append(item)
+    return self._lf.select(resolved)
+
 
 @pl.api.register_dataframe_namespace("ps")
 class PolarstationDataFrame:
@@ -97,3 +125,33 @@ class PolarstationDataFrame:
     if batch:
       df = df.with_columns(batch)
     return df
+
+  def select(self, *exprs, **named_exprs) -> pl.DataFrame:
+    """Like df.select, but also accepts FrameExpr.
+
+    Examples:
+      animals = polarstation.make_example_data("animals")
+      animals.ps.select(pl.col("animal").ps_enum.make(), "weight")
+    """
+    all_items = list(_flatten(exprs))
+
+    for key, val in named_exprs.items():
+      if isinstance(val, FrameExpr):
+        original = val
+        all_items.append(FrameExpr(
+          original._col_expr,
+          lambda lf, fe=original, k=key: [e.alias(k) for e in fe.resolve(lf)],
+        ))
+      elif isinstance(val, pl.Expr):
+        all_items.append(val.alias(key))
+      else:
+        all_items.append(pl.lit(val).alias(key))
+
+    lf = self._df.lazy()
+    resolved: list[pl.Expr] = []
+    for item in all_items:
+      if isinstance(item, FrameExpr):
+        resolved.extend(item.resolve(lf))
+      else:
+        resolved.append(item)
+    return self._df.select(resolved)
