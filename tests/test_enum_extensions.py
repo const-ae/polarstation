@@ -1,5 +1,5 @@
-import pytest
 import polars as pl
+import pytest
 
 import polarstation  # noqa: F401 — registers ps_enum namespace
 

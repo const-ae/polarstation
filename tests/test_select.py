@@ -1,5 +1,4 @@
 import polars as pl
-import pytest
 
 import polarstation  # noqa: F401 — registers ps namespace
 

@@ -1,4 +1,3 @@
-import pytest
 import polars as pl
 
 import polarstation  # noqa: F401
@@ -79,13 +78,17 @@ def test_reorder_all_null():
 
 
 def test_missing_to_category_all_null():
-    r = ALL_NULL.ps.with_columns(pl.col("x").ps_enum.make(categories=["a"]).ps_enum.missing_to_category("NA"))
+    r = ALL_NULL.ps.with_columns(
+        pl.col("x").ps_enum.make(categories=["a"]).ps_enum.missing_to_category("NA")
+    )
     assert r["x"].null_count() == 0
     assert r["x"].to_list() == ["NA", "NA", "NA"]
 
 
 def test_drop_unused_all_null():
-    r = ALL_NULL.ps.with_columns(pl.col("x").ps_enum.make(categories=["a", "b"]).ps_enum.drop_unused())
+    r = ALL_NULL.ps.with_columns(
+        pl.col("x").ps_enum.make(categories=["a", "b"]).ps_enum.drop_unused()
+    )
     assert r["x"].dtype == pl.Enum([])
     assert r["x"].null_count() == 3
 
