@@ -6,10 +6,9 @@ readme = "README.md"
 authors = [
     { name = "const-ae", email = "artjom31415@googlemail.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
     "polars>=1.0",
-    "numpy",
 ]
 
 [build-system]
@@ -40,6 +39,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 indent-width = 2
+target-version = "py310"
 
 [tool.ruff.format]
 indent-style = "space"
