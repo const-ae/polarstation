@@ -103,6 +103,9 @@ and then in a separate terminal
 uv run quarto preview
 ```
 
+To update the documentation at https://const-ae.github.io/polarstation/
+\``uv run quarto publish gh-pages`
+
 To re-render the README.md run
 
     quarto render README.qmd --to gfm
