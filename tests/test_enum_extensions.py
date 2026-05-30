@@ -289,3 +289,45 @@ def test_reorder_missing_drop_raises_without_make_null():
         NULL_AGG_DF.ps.with_columns(
             pl.col("x").ps_enum.make().ps_enum.reorder(pl.col("y"), missing="drop")
         )
+
+# ── auto-make from String / Categorical ──────────────────────────────────────
+
+
+_STR = pl.DataFrame({"x": ["a", "b", "b", "c", "c", "c"], "y": [1, 2, 3, 4, 5, 6]})
+_CAT = pl.DataFrame({"x": pl.Series(["a", "b", "b", "c", "c", "c"], dtype=pl.Categorical)})
+
+
+def test_lump_string_input():
+    r = _STR.ps.with_columns(pl.col("x").ps_enum.lump(n=2))
+    assert r["x"].dtype == pl.Enum(["b", "c", "Other"])
+
+
+def test_lump_categorical_input():
+    r = _CAT.ps.with_columns(pl.col("x").ps_enum.lump(n=2))
+    assert r["x"].dtype == pl.Enum(["b", "c", "Other"])
+
+
+def test_relabel_string_input():
+    r = _STR.ps.with_columns(pl.col("x").ps_enum.relabel({"a": "A"}))
+    assert r["x"].dtype == pl.Enum(["A", "b", "c"])
+    assert r["x"].drop_nulls().to_list().count("A") == 1
+
+
+def test_relabel_categorical_input():
+    r = _CAT.ps.with_columns(pl.col("x").ps_enum.relabel(str.upper))
+    assert r["x"].dtype == pl.Enum(["A", "B", "C"])
+
+
+def test_reorder_string_input():
+    r = _STR.ps.with_columns(pl.col("x").ps_enum.reorder("y"))
+    assert r["x"].dtype.categories.to_list() == ["a", "b", "c"]
+
+
+def test_infreq_string_input():
+    r = _STR.ps.with_columns(pl.col("x").ps_enum.infreq())
+    assert r["x"].dtype.categories.to_list() == ["c", "b", "a"]
+
+
+def test_infreq_categorical_input():
+    r = _CAT.ps.with_columns(pl.col("x").ps_enum.infreq())
+    assert r["x"].dtype.categories.to_list() == ["c", "b", "a"]
