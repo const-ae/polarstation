@@ -24,10 +24,15 @@ def _get_cats(lf: pl.LazyFrame, col_ref: pl.Expr, name: str, dtype) -> list[str]
 def _make_impl(*, lf, name, col_ref, dtype, categories, make_null):
   cats = list(categories) if categories is not None else None
   if cats is None:
-    str_expr = col_ref.cast(pl.String)
     if make_null:
-      str_expr = pl.when(str_expr.is_in(make_null)).then(None).otherwise(str_expr)
-    cats = lf.select(str_expr.drop_nulls().unique().sort().alias(name)).collect()[name].to_list()
+      filtered = pl.when(col_ref.cast(pl.String).is_in(make_null)).then(None).otherwise(col_ref)
+    else:
+      filtered = col_ref
+    cats = (
+      lf.select(filtered.drop_nulls().unique().sort().cast(pl.String).alias(name))
+      .collect()[name]
+      .to_list()
+    )
   str_col = col_ref.cast(pl.String)
   if make_null:
     str_col = pl.when(str_col.is_in(make_null)).then(None).otherwise(str_col)
@@ -181,11 +186,15 @@ class PolarstationEnumExpression:
     categories: Sequence[str] | None = None,
     make_null: Sequence[str] | str = (),
   ) -> FrameExpr:
-    """Cast a string column to Enum, optionally deriving categories from the data.
+    """Cast a column to Enum, optionally deriving categories from the data.
+
+    When categories are derived from the data, they are sorted by the column's native dtype
+    before being cast to string. This means integers sort numerically (1, 2, 10), dates
+    chronologically, and strings alphabetically — rather than all sorting lexicographically.
 
     Args:
       categories: Fixed set of allowed values. If omitted, derived from the data as the
-        unique values in alphabetical order.
+        unique values sorted by native dtype order.
       make_null: Values to replace with null before casting.
 
     Examples:

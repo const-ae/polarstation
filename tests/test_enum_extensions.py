@@ -50,6 +50,18 @@ def test_make_multi_col():
     assert isinstance(r["z"].dtype, pl.Enum)
 
 
+def test_make_integer_sorts_numerically():
+    r = pl.DataFrame({"x": [1, 2, 10, 20]}).ps.with_columns(pl.col("x").ps_enum.make())
+    assert r["x"].dtype.categories.to_list() == ["1", "2", "10", "20"]
+
+
+def test_make_date_sorts_chronologically():
+    import datetime
+    df = pl.DataFrame({"x": [datetime.date(2020, 1, 1), datetime.date(2019, 6, 1), datetime.date(2021, 3, 15)]})
+    r = df.ps.with_columns(pl.col("x").ps_enum.make())
+    assert r["x"].dtype.categories.to_list() == ["2019-06-01", "2020-01-01", "2021-03-15"]
+
+
 # ── set_categories / drop_unused / add_categories ────────────────────────────
 
 
