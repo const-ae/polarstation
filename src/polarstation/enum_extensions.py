@@ -70,14 +70,18 @@ def _lump_impl(*, lf, name, col_ref, dtype, n, other_label, lump_fn):
 def _rename_impl(*, lf, name, col_ref, dtype, mapping, strict):
   old_cats = _get_cats(lf, col_ref, name, dtype)
   if callable(mapping):
-    new_cats = [mapping(c) for c in old_cats]
+    new_cats_full = [mapping(c) for c in old_cats]
   else:
     if strict:
       unknown = set(mapping.keys()) - set(old_cats)
       if unknown:
         raise ValueError(f"rename strict=True: keys not in categories: {sorted(unknown)!r}")
-    new_cats = [mapping.get(c, c) for c in old_cats]
-  return col_ref.cast(pl.String).replace(old_cats, new_cats).cast(pl.Enum(new_cats)).alias(name)
+    new_cats_full = [mapping.get(c, c) for c in old_cats]
+  seen: set[str] = set()
+  new_cats = [c for c in new_cats_full if not (c in seen or seen.add(c))]  # type: ignore[func-returns-value]
+  return (
+    col_ref.cast(pl.String).replace(old_cats, new_cats_full).cast(pl.Enum(new_cats)).alias(name)
+  )
 
 
 def _missing_to_category_impl(*, lf, name, col_ref, dtype, category_name):
