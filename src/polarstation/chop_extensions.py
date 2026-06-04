@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 import polars as pl
 
-from polarstation.frame_expr import FrameExpr
+from polarstation.frame_expr import FrameExpr, resolve_across_columns
 
 # ── dtype helpers ─────────────────────────────────────────────────────────────
 
@@ -197,11 +197,11 @@ def _make_int_labels(
 # ── string/enum helpers ───────────────────────────────────────────────────────
 
 
-def _get_categories(name: str, lf: pl.LazyFrame, dtype: pl.DataType) -> list[str]:
+def _get_categories(lf: pl.LazyFrame, col_ref: pl.Expr, name: str, dtype: pl.DataType) -> list[str]:
   """Ordered category list: Enum uses its defined order; String/Categorical sort alphabetically."""
   if isinstance(dtype, pl.Enum):
     return dtype.categories.to_list()
-  return lf.select(pl.col(name).drop_nulls().unique().sort()).collect()[name].to_list()
+  return lf.select(col_ref.drop_nulls().unique().sort()).collect()[name].to_list()
 
 
 def _make_enum_labels(
@@ -233,6 +233,7 @@ def _make_enum_labels(
 
 
 def _cut_enum_expr(
+  col_ref: pl.Expr,
   name: str,
   breaks_phys: list[int],
   labels: list[str],
@@ -249,7 +250,7 @@ def _cut_enum_expr(
   bounds_phys = [lo_phys] + breaks_phys + [hi_phys]
   enum_dtype = pl.Enum(categories)
   cat_expr = (
-    pl.col(name)
+    col_ref
     .cast(enum_dtype)
     .to_physical()
     .cut([float(b) for b in breaks_phys], labels=labels, left_closed=left_closed)
@@ -326,6 +327,7 @@ def _brk_n(xs: list, n: int, tail: str, left_closed: bool = True) -> list:
 
 
 def _cut_expr(
+  col_ref: pl.Expr,
   name: str,
   breaks: list[float],
   labels: Sequence[str],
@@ -338,7 +340,7 @@ def _cut_expr(
   bounds = [lo] + breaks + [hi]
   n = len(bounds) - 1
   labs = list(labels)
-  cat_expr = pl.col(name).cut(breaks, labels=labs, left_closed=left_closed)
+  cat_expr = col_ref.cut(breaks, labels=labs, left_closed=left_closed)
   if return_struct:
     idx = cat_expr.to_physical()
     if discrete:
@@ -365,6 +367,7 @@ def _cut_expr(
 
 
 def _cut_physical_representation_expr(
+  col_ref: pl.Expr,
   name: str,
   breaks_phys: list[int],
   labels: list[str],
@@ -377,7 +380,7 @@ def _cut_physical_representation_expr(
   """Like _cut_expr but operates on the physical (integer) representation of the column."""
   bounds_phys = [lo_phys] + breaks_phys + [hi_phys]
   cat_expr = (
-    pl.col(name)
+    col_ref
     .to_physical()
     .cut([float(b) for b in breaks_phys], labels=labels, left_closed=left_closed)
   )
@@ -398,6 +401,7 @@ def _cut_physical_representation_expr(
 
 
 def _labeled_physical_representation_cut(
+  col_ref: pl.Expr,
   name: str,
   breaks_phys: list[int],
   lo_phys: int,
@@ -416,11 +420,12 @@ def _labeled_physical_representation_cut(
     )
   )
   return _cut_physical_representation_expr(
-    name, breaks_phys, labs, left_closed, return_struct, lo_phys, hi_phys, dtype
+    col_ref, name, breaks_phys, labs, left_closed, return_struct, lo_phys, hi_phys, dtype
   )
 
 
 def _labeled_enum_cut(
+  col_ref: pl.Expr,
   name: str,
   breaks_phys: list[int],
   lo_phys: int,
@@ -437,11 +442,12 @@ def _labeled_enum_cut(
     else _make_enum_labels(breaks_phys, left_closed, lo_phys, hi_phys, categories, fmt)
   )
   return _cut_enum_expr(
-    name, breaks_phys, labs, left_closed, return_struct, lo_phys, hi_phys, categories
+    col_ref, name, breaks_phys, labs, left_closed, return_struct, lo_phys, hi_phys, categories
   )
 
 
 def _labeled_num_cut(
+  col_ref: pl.Expr,
   name: str,
   breaks: list[float],
   lo: float,
@@ -459,7 +465,8 @@ def _labeled_num_cut(
   else:
     labs = _make_labels(breaks, left_closed, fmt, lo=lo, hi=hi)
   return _cut_expr(
-    name, breaks, labs, left_closed, return_struct, lo=lo, hi=hi, discrete=_is_integer(dtype)
+    col_ref, name, breaks, labs, left_closed, return_struct,
+    lo=lo, hi=hi, discrete=_is_integer(dtype)
   )
 
 
@@ -525,39 +532,19 @@ def _quantile_breaks_physical_representation(
 
 
 def _quantile_breaks_float(
-  lf: pl.LazyFrame, probs: list[float], name: str
+  lf: pl.LazyFrame, probs: list[float], col_ref: pl.Expr
 ) -> tuple[list[float], list[float], Any, Any]:
   """Collect deduplicated float quantile breaks, kept probabilities, and (min, max)."""
   q_df = lf.select(
     [
-      pl.col(name).quantile(p, interpolation="linear").alias(f"__q{i}__")
+      col_ref.quantile(p, interpolation="linear").alias(f"__q{i}__")
       for i, p in enumerate(probs)
     ]
-    + [pl.col(name).min().alias("__mn__"), pl.col(name).max().alias("__mx__")]
+    + [col_ref.min().alias("__mn__"), col_ref.max().alias("__mx__")]
   ).collect()
   breaks, kept = _deduplicate_float_breaks(q_df, probs)
   return breaks, kept, q_df["__mn__"][0], q_df["__mx__"][0]
 
-
-# ── resolver factories ────────────────────────────────────────────────────────
-
-
-def resolve_across_columns(
-  expr: pl.Expr,
-  map_dtype: Callable,
-  **kwargs,
-) -> Callable[[pl.LazyFrame], list[pl.Expr]]:
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    result = []
-    for name in col_schema.names():
-      dtype = col_schema[name]
-      _assert_choppable_dtype(name, dtype)
-      fn = map_dtype(name=name, dtype=dtype)
-      result.append(fn(lf=lf, name=name, dtype=dtype, **kwargs))
-    return result
-
-  return resolver
 
 
 # ── chop ──────────────────────────────────────────────────────────────────────
@@ -567,6 +554,7 @@ def _chop_numeric(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   breaks: list,
   labels: Sequence[str] | None,
@@ -579,13 +567,13 @@ def _chop_numeric(
   if extend:
     label_lo, label_hi = _numerical_extremes(dtype)
   else:
-    raw_lo, raw_hi = _min_max(lf, pl.col(name))
+    raw_lo, raw_hi = _min_max(lf, col_ref)
     if raw_lo is None or raw_hi is None:
       label_lo, label_hi = float("-inf"), float("inf")
     else:
       label_lo, label_hi = float(raw_lo), float(raw_hi)
   return _labeled_num_cut(
-    name, breaks, label_lo, label_hi, dtype, labels, left_closed, actual_fmt, return_struct
+    col_ref, name, breaks, label_lo, label_hi, dtype, labels, left_closed, actual_fmt, return_struct
   )
 
 
@@ -593,6 +581,7 @@ def _chop_categorical(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   breaks: list,
   labels: Sequence[str] | None,
@@ -613,12 +602,12 @@ def _chop_categorical(
   else:
     # String/Categorical: form the union of observed values and break values so
     # that a break can partition on a value not present in the data.
-    observed = lf.select(pl.col(name).drop_nulls().unique().sort()).collect()[name].to_list()
+    observed = lf.select(col_ref.drop_nulls().unique().sort()).collect()[name].to_list()
     if not observed:
       return _enum_null_result(name, labels, return_struct)
     categories = sorted(set(observed) | set(breaks))
   breaks_phys = sorted(categories.index(b) for b in breaks)
-  phys_expr = pl.col(name).cast(pl.Enum(categories)).to_physical()
+  phys_expr = col_ref.cast(pl.Enum(categories)).to_physical()
   mn_p, mx_p = _min_max(lf, phys_expr)
   if mn_p is None or mx_p is None:
     return _enum_null_result(name, labels, return_struct)
@@ -626,7 +615,8 @@ def _chop_categorical(
   # Clamp hi_phys upward so a break beyond all observed values is still within bounds.
   hi_phys = max(int(mx_p), breaks_phys[-1] if breaks_phys else int(mx_p))
   return _labeled_enum_cut(
-    name, breaks_phys, lo_phys, hi_phys, categories, labels, left_closed, fmt, return_struct
+    col_ref, name, breaks_phys, lo_phys, hi_phys, categories,
+    labels, left_closed, fmt, return_struct
   )
 
 
@@ -634,6 +624,7 @@ def _chop_temporal(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   breaks: list,
   labels: Sequence[str] | None,
@@ -644,7 +635,7 @@ def _chop_temporal(
 ) -> pl.Expr:
   del extend
   phys_breaks = [int(pl.Series([b]).cast(dtype).to_physical()[0]) for b in breaks]
-  raw_lo, raw_hi = _min_max(lf, pl.col(name))
+  raw_lo, raw_hi = _min_max(lf, col_ref)
   if raw_lo is None or raw_hi is None:
     lo_phys = phys_breaks[0] if phys_breaks else 0
     hi_phys = phys_breaks[-1] if phys_breaks else 0
@@ -652,7 +643,7 @@ def _chop_temporal(
     lo_phys = int(pl.Series([raw_lo]).cast(dtype).to_physical()[0])
     hi_phys = int(pl.Series([raw_hi]).cast(dtype).to_physical()[0])
   return _labeled_physical_representation_cut(
-    name, phys_breaks, lo_phys, hi_phys, dtype, labels, left_closed, fmt, return_struct
+    col_ref, name, phys_breaks, lo_phys, hi_phys, dtype, labels, left_closed, fmt, return_struct
   )
 
 
@@ -663,6 +654,7 @@ def _width_temporal(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   size: _dt.timedelta | Any,
   start: Any | None,
@@ -679,10 +671,10 @@ def _width_temporal(
       f"'size' must be a datetime.timedelta, got {type(size).__name__}"
     )
   size_phys = _timedelta_to_physical_representation(size, dtype)
-  raw_lo, raw_hi = _min_max(lf, pl.col(name))
+  raw_lo, raw_hi = _min_max(lf, col_ref)
   if raw_lo is None or raw_hi is None:
     return _cut_physical_representation_expr(
-      name, [], ["[-∞, ∞)"], left_closed, return_struct, 0, 0, dtype
+      col_ref, name, [], ["[-∞, ∞)"], left_closed, return_struct, 0, 0, dtype
     )
   lo_phys = (
     int(pl.Series([start]).cast(dtype).to_physical()[0])
@@ -694,7 +686,8 @@ def _width_temporal(
   breaks_phys = [lo_phys + size_phys * i for i in range(1, n_bins)]
   label_hi_phys = lo_phys + n_bins * size_phys
   return _labeled_physical_representation_cut(
-    name, breaks_phys, lo_phys, label_hi_phys, dtype, labels, left_closed, fmt, return_struct
+    col_ref, name, breaks_phys, lo_phys, label_hi_phys, dtype,
+    labels, left_closed, fmt, return_struct
   )
 
 
@@ -702,6 +695,7 @@ def _width_categorical(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   size: int | Any,
   start: Any | None,
@@ -716,10 +710,10 @@ def _width_categorical(
       f"Column '{name}' has categorical dtype {dtype}; "
       f"'size' must be an int (number of categories), got {type(size).__name__}"
     )
-  categories = _get_categories(name, lf, dtype)
+  categories = _get_categories(lf, col_ref, name, dtype)
   if not categories:
     return _enum_null_result(name, labels, return_struct)
-  phys_expr = pl.col(name).cast(pl.Enum(categories)).to_physical()
+  phys_expr = col_ref.cast(pl.Enum(categories)).to_physical()
   mn_p, mx_p = _min_max(lf, phys_expr)
   if mn_p is None or mx_p is None:
     return _enum_null_result(name, labels, return_struct)
@@ -733,6 +727,7 @@ def _width_categorical(
     label_lo_phys = lo_phys
     label_hi_phys = min(lo_phys + n_bins * size, len(categories) - 1)
   return _labeled_enum_cut(
+    col_ref,
     name,
     breaks_phys,
     label_lo_phys,
@@ -749,6 +744,7 @@ def _width_numeric(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   size: float | Any,
   start: Any | None,
@@ -764,7 +760,7 @@ def _width_numeric(
       f"Column '{name}' has numeric dtype {dtype}; 'size' must be a number, "
       f"not a timedelta. Use a timedelta only for temporal columns."
     )
-  finite = pl.col(name).filter(pl.col(name).is_finite())
+  finite = col_ref.filter(col_ref.is_finite())
   raw_lo_f, raw_hi_f = _min_max(lf, finite)
   if raw_lo_f is None or raw_hi_f is None:
     breaks_list: list[float] = []
@@ -783,7 +779,8 @@ def _width_numeric(
       # For integer dtypes, cap at data max so discrete labels don't overshoot
       label_hi = float(raw_hi_f) if _is_integer(dtype) else lo + n_bins * float(size)
   return _labeled_num_cut(
-    name, breaks_list, label_lo, label_hi, dtype, labels, left_closed, actual_fmt, return_struct
+    col_ref, name, breaks_list, label_lo, label_hi, dtype, labels, left_closed, actual_fmt,
+    return_struct
   )
 
 
@@ -794,6 +791,7 @@ def _n_elements_temporal(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   n: int,
   tail: Literal["split", "merge"],
@@ -804,16 +802,16 @@ def _n_elements_temporal(
   return_struct: bool,
 ) -> pl.Expr:
   del fmt, extend
-  xs_phys = lf.select(pl.col(name).drop_nulls().sort().to_physical()).collect()[name].to_list()
+  xs_phys = lf.select(col_ref.drop_nulls().sort().to_physical()).collect()[name].to_list()
   if not xs_phys:
     labs = list(labels) if labels is not None else ["[-∞, ∞)"]
     return _cut_physical_representation_expr(
-      name, [], labs, left_closed, return_struct, 0, 0, dtype
+      col_ref, name, [], labs, left_closed, return_struct, 0, 0, dtype
     )
   breaks_phys = _brk_n(xs_phys, n, tail, left_closed)
   lo_phys, hi_phys = xs_phys[0], xs_phys[-1]
   return _labeled_physical_representation_cut(
-    name, breaks_phys, lo_phys, hi_phys, dtype, labels, left_closed, None, return_struct
+    col_ref, name, breaks_phys, lo_phys, hi_phys, dtype, labels, left_closed, None, return_struct
   )
 
 
@@ -821,6 +819,7 @@ def _n_elements_categorical(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   n: int,
   tail: Literal["split", "merge"],
@@ -831,9 +830,9 @@ def _n_elements_categorical(
   return_struct: bool,
 ) -> pl.Expr:
   del fmt
-  categories = _get_categories(name, lf, dtype)
+  categories = _get_categories(lf, col_ref, name, dtype)
   xs_phys = (
-    lf.select(pl.col(name).cast(pl.Enum(categories)).to_physical().drop_nulls().sort())
+    lf.select(col_ref.cast(pl.Enum(categories)).to_physical().drop_nulls().sort())
     .collect()[name]
     .to_list()
   )
@@ -843,7 +842,8 @@ def _n_elements_categorical(
   lo_phys = 0 if extend else xs_phys[0]
   hi_phys = len(categories) - 1 if extend else xs_phys[-1]
   return _labeled_enum_cut(
-    name, breaks_phys, lo_phys, hi_phys, categories, labels, left_closed, None, return_struct
+    col_ref, name, breaks_phys, lo_phys, hi_phys, categories, labels, left_closed, None,
+    return_struct
   )
 
 
@@ -851,6 +851,7 @@ def _n_elements_numeric(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   n: int,
   tail: Literal["split", "merge"],
@@ -860,7 +861,7 @@ def _n_elements_numeric(
   extend: bool,
   return_struct: bool,
 ) -> pl.Expr:
-  xs = lf.select(pl.col(name).drop_nulls().sort()).collect()[name].to_list()
+  xs = lf.select(col_ref.drop_nulls().sort()).collect()[name].to_list()
   xs_f = [float(v) for v in xs]
   breaks_list = _brk_n(xs_f, n, tail, left_closed)
   if not xs_f:
@@ -870,7 +871,7 @@ def _n_elements_numeric(
   else:
     label_lo, label_hi = xs_f[0], xs_f[-1]
   return _labeled_num_cut(
-    name, breaks_list, label_lo, label_hi, dtype, labels, left_closed, fmt, return_struct
+    col_ref, name, breaks_list, label_lo, label_hi, dtype, labels, left_closed, fmt, return_struct
   )
 
 
@@ -881,6 +882,7 @@ def _quantiles_temporal(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   probs: list[float],
   labels: Sequence[str] | None,
@@ -892,12 +894,12 @@ def _quantiles_temporal(
 ) -> pl.Expr:
   del raw, extend
   breaks_phys, mn_p, mx_p = _quantile_breaks_physical_representation(
-    lf, probs, pl.col(name).to_physical()
+    lf, probs, col_ref.to_physical()
   )
   lo_phys = int(mn_p) if mn_p is not None else 0
   hi_phys = int(mx_p) if mx_p is not None else 0
   return _labeled_physical_representation_cut(
-    name, breaks_phys, lo_phys, hi_phys, dtype, labels, left_closed, fmt, return_struct
+    col_ref, name, breaks_phys, lo_phys, hi_phys, dtype, labels, left_closed, fmt, return_struct
   )
 
 
@@ -905,6 +907,7 @@ def _quantiles_categorical(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   probs: list[float],
   labels: Sequence[str] | None,
@@ -915,17 +918,18 @@ def _quantiles_categorical(
   return_struct: bool,
 ) -> pl.Expr:
   del raw
-  categories = _get_categories(name, lf, dtype)
+  categories = _get_categories(lf, col_ref, name, dtype)
   if not categories:
     return _enum_null_result(name, labels, return_struct)
-  phys_expr = pl.col(name).cast(pl.Enum(categories)).to_physical()
+  phys_expr = col_ref.cast(pl.Enum(categories)).to_physical()
   breaks_phys, mn_p, mx_p = _quantile_breaks_physical_representation(lf, probs, phys_expr)
   if mn_p is None or mx_p is None:
     return _enum_null_result(name, labels, return_struct)
   lo_phys = 0 if extend else int(mn_p)
   hi_phys = len(categories) - 1 if extend else int(mx_p)
   return _labeled_enum_cut(
-    name, breaks_phys, lo_phys, hi_phys, categories, labels, left_closed, fmt, return_struct
+    col_ref, name, breaks_phys, lo_phys, hi_phys, categories,
+    labels, left_closed, fmt, return_struct
   )
 
 
@@ -933,6 +937,7 @@ def _quantiles_numeric(
   *,
   lf: pl.LazyFrame,
   name: str,
+  col_ref: pl.Expr,
   dtype: pl.DataType,
   probs: list[float],
   labels: Sequence[str] | None,
@@ -943,7 +948,7 @@ def _quantiles_numeric(
   return_struct: bool,
 ) -> pl.Expr:
   actual_fmt = fmt if fmt is not None else ("g" if raw else ".0%")
-  breaks_list, kept_probs, mn, mx = _quantile_breaks_float(lf, probs, name)
+  breaks_list, kept_probs, mn, mx = _quantile_breaks_float(lf, probs, col_ref)
   if mn is None or mx is None:
     bound_lo, bound_hi = float("-inf"), float("inf")
   elif extend:
@@ -952,7 +957,8 @@ def _quantiles_numeric(
     bound_lo, bound_hi = float(mn), float(mx)
   if raw:
     return _labeled_num_cut(
-      name, breaks_list, bound_lo, bound_hi, dtype, labels, left_closed, actual_fmt, return_struct
+      col_ref, name, breaks_list, bound_lo, bound_hi, dtype, labels, left_closed, actual_fmt,
+      return_struct
     )
   auto_labels = (
     list(labels)
@@ -960,6 +966,7 @@ def _quantiles_numeric(
     else _make_quantile_labels(kept_probs, left_closed, actual_fmt)
   )
   return _cut_expr(
+    col_ref,
     name,
     breaks_list,
     auto_labels,
@@ -1036,25 +1043,26 @@ class PolarstationChopExpression:
         f"but got {_observed_break_type()} breaks."
       )
 
-    def map_dtype(*, name, dtype):
+    def impl(*, lf, name, col_ref, dtype, **kw):
+      _assert_choppable_dtype(name, dtype)
       if _is_temporal(dtype) and not all_breaks_temporal:
         raise make_type_error(name, dtype, "temporal")
-      elif _is_temporal(dtype) and all_breaks_temporal:
-        return _chop_temporal
+      elif _is_temporal(dtype):
+        return _chop_temporal(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
       elif _is_categorical(dtype) and not all_breaks_strings:
         raise make_type_error(name, dtype, "string")
-      elif _is_categorical(dtype) and all_breaks_strings:
-        return _chop_categorical
+      elif _is_categorical(dtype):
+        return _chop_categorical(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
       elif not all_breaks_numeric:
         raise make_type_error(name, dtype, "numeric")
       else:
-        return _chop_numeric
+        return _chop_numeric(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
 
     return FrameExpr(
       self._expr,
       resolve_across_columns(
         self._expr,
-        map_dtype,
+        impl,
         breaks=breaks,
         labels=labels,
         left_closed=left_closed,
@@ -1097,18 +1105,19 @@ class PolarstationChopExpression:
       scores.ps.with_columns(pl.col("score").ps_chop.width(25).alias("band"))
     """
 
-    def map_dtype(*, name, dtype):
+    def impl(*, lf, name, col_ref, dtype, **kw):
+      _assert_choppable_dtype(name, dtype)
       if _is_temporal(dtype):
-        return _width_temporal
+        return _width_temporal(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
       if _is_categorical(dtype):
-        return _width_categorical
-      return _width_numeric
+        return _width_categorical(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
+      return _width_numeric(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
 
     return FrameExpr(
       self._expr,
       resolve_across_columns(
         self._expr,
-        map_dtype,
+        impl,
         size=size,
         start=start,
         labels=labels,
@@ -1152,18 +1161,19 @@ class PolarstationChopExpression:
       scores.ps.with_columns(pl.col("score").ps_chop.n_elements(3).alias("tercile"))
     """
 
-    def map_dtype(*, name, dtype):
+    def impl(*, lf, name, col_ref, dtype, **kw):
+      _assert_choppable_dtype(name, dtype)
       if _is_temporal(dtype):
-        return _n_elements_temporal
+        return _n_elements_temporal(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
       if _is_categorical(dtype):
-        return _n_elements_categorical
-      return _n_elements_numeric
+        return _n_elements_categorical(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
+      return _n_elements_numeric(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
 
     return FrameExpr(
       self._expr,
       resolve_across_columns(
         self._expr,
-        map_dtype,
+        impl,
         n=n,
         tail=tail,
         labels=labels,
@@ -1248,19 +1258,20 @@ class PolarstationChopExpression:
       )
     """
 
-    def map_dtype(*, name, dtype):
+    def impl(*, lf, name, col_ref, dtype, **kw):
+      _assert_choppable_dtype(name, dtype)
       if _is_temporal(dtype):
-        return _quantiles_temporal
+        return _quantiles_temporal(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
       if _is_categorical(dtype):
-        return _quantiles_categorical
-      return _quantiles_numeric
+        return _quantiles_categorical(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
+      return _quantiles_numeric(lf=lf, name=name, col_ref=col_ref, dtype=dtype, **kw)
 
     probs = sorted(float(p) for p in probs)
     return FrameExpr(
       self._expr,
       resolve_across_columns(
         self._expr,
-        map_dtype,
+        impl,
         probs=probs,
         labels=labels,
         left_closed=left_closed,

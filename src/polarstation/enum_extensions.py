@@ -3,7 +3,7 @@ from typing import Literal
 
 import polars as pl
 
-from polarstation.frame_expr import FrameExpr
+from polarstation.frame_expr import FrameExpr, resolve_across_columns
 from polarstation.typing import IntoExpr, _into_expr
 
 
@@ -14,240 +14,138 @@ def _require_enum(name: str, dtype) -> None:
     )
 
 
-def _get_cats(lf: pl.LazyFrame, name: str, dtype) -> list[str]:
-  """Return the category list, deriving it from the data for String/Categorical."""
+def _get_cats(lf: pl.LazyFrame, col_ref: pl.Expr, name: str, dtype) -> list[str]:
+  """Return the category list, deriving it from col_ref for String/Categorical."""
   if isinstance(dtype, pl.Enum):
     return dtype.categories.to_list()
+  return lf.select(col_ref.cast(pl.String).drop_nulls().unique().sort()).collect()[name].to_list()
+
+
+def _make_impl(*, lf, name, col_ref, dtype, categories, make_null):
+  cats = list(categories) if categories is not None else None
+  if cats is None:
+    str_expr = col_ref.cast(pl.String)
+    if make_null:
+      str_expr = pl.when(str_expr.is_in(make_null)).then(None).otherwise(str_expr)
+    cats = lf.select(str_expr.drop_nulls().unique().sort().alias(name)).collect()[name].to_list()
+  str_col = col_ref.cast(pl.String)
+  if make_null:
+    str_col = pl.when(str_col.is_in(make_null)).then(None).otherwise(str_col)
+  return str_col.cast(pl.Enum(cats)).alias(name)
+
+
+def _lump_impl(*, lf, name, col_ref, dtype, n, other_label, lump_fn):
+  counts = lf.group_by(col_ref).len(name="n").sort("n", descending=True).collect()
+  non_null_counts = counts.filter(pl.col(name).is_not_null())
+  if lump_fn is not None:
+    mask = lump_fn(non_null_counts)
+    lump_bool = mask.to_list() if hasattr(mask, "to_list") else list(mask)
+    all_cats_str = non_null_counts[name].cast(pl.String).to_list()
+    lump_set = {c for c, v in zip(all_cats_str, lump_bool) if v}
+    top_n_set = set(all_cats_str) - lump_set
+  else:
+    top_n_set = set(non_null_counts.head(n)[name].cast(pl.String).to_list())
+  has_other = len(top_n_set) < non_null_counts.height
+  original_cats = _get_cats(lf, col_ref, name, dtype)
+  kept_cats = [c for c in original_cats if c in top_n_set]
+  new_cats = kept_cats + ([other_label] if has_other and other_label not in top_n_set else [])
+  if has_other:
+    return (
+      pl.when(col_ref.is_null())
+      .then(None)
+      .when(col_ref.cast(pl.String).is_in(top_n_set))
+      .then(col_ref.cast(pl.String))
+      .otherwise(pl.lit(other_label))
+      .cast(pl.Enum(new_cats))
+      .alias(name)
+    )
+  return col_ref.cast(pl.Enum(new_cats)).alias(name)
+
+
+def _relabel_impl(*, lf, name, col_ref, dtype, mapping, strict):
+  old_cats = _get_cats(lf, col_ref, name, dtype)
+  if callable(mapping):
+    new_cats = [mapping(c) for c in old_cats]
+  else:
+    if strict:
+      unknown = set(mapping.keys()) - set(old_cats)
+      if unknown:
+        raise ValueError(f"relabel strict=True: keys not in categories: {sorted(unknown)!r}")
+    new_cats = [mapping.get(c, c) for c in old_cats]
+  return col_ref.cast(pl.String).replace(old_cats, new_cats).cast(pl.Enum(new_cats)).alias(name)
+
+
+def _missing_to_category_impl(*, lf, name, col_ref, dtype, category_name):
+  _require_enum(name, dtype)
+  old_cats = dtype.categories.to_list()
+  new_cats = old_cats if category_name in old_cats else old_cats + [category_name]
   return (
-    lf.select(pl.col(name).cast(pl.String).drop_nulls().unique().sort()).collect()[name].to_list()
+    pl.when(col_ref.is_null())
+    .then(pl.lit(category_name))
+    .otherwise(col_ref.cast(pl.String))
+    .cast(pl.Enum(new_cats))
+    .alias(name)
   )
 
 
-def _make_resolver(expr: pl.Expr, categories: Sequence[str] | None, make_null: list[str]):
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    result = []
-    for name in col_schema.names():
-      cats = list(categories) if categories is not None else None
-      if cats is None:
-        str_expr = pl.col(name).cast(pl.String)
-        if make_null:
-          str_expr = pl.when(str_expr.is_in(make_null)).then(None).otherwise(str_expr)
-        cats = (
-          lf.select(str_expr.drop_nulls().unique().sort().alias(name)).collect()[name].to_list()
-        )
-      str_col = pl.col(name).cast(pl.String)
-      if make_null:
-        str_col = pl.when(str_col.is_in(make_null)).then(None).otherwise(str_col)
-      result.append(str_col.cast(pl.Enum(cats)).alias(name))
-    return result
-
-  return resolver
+def _category_to_missing_impl(*, lf, name, col_ref, dtype, names):
+  _require_enum(name, dtype)
+  old_cats = dtype.categories.to_list()
+  unknown = set(names) - set(old_cats)
+  if unknown:
+    raise ValueError(f"category_to_missing: {sorted(unknown)!r} are not categories")
+  names_set = set(names)
+  new_cats = [c for c in old_cats if c not in names_set]
+  return (
+    pl.when(col_ref.cast(pl.String).is_in(names))
+    .then(None)
+    .otherwise(col_ref.cast(pl.String))
+    .cast(pl.Enum(new_cats))
+    .alias(name)
+  )
 
 
-def _lump_resolver(expr: pl.Expr, n: int, other_label: str, lump_fn: Callable | None):
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    result = []
-    for name in col_schema.names():
-      counts = lf.group_by(name).len(name='n').sort("n", descending=True).collect()
-      non_null_counts = counts.filter(pl.col(name).is_not_null())
-      if lump_fn is not None:
-        mask = lump_fn(non_null_counts)
-        lump_bool = mask.to_list() if hasattr(mask, "to_list") else list(mask)
-        all_cats_str = non_null_counts[name].cast(pl.String).to_list()
-        lump_set = {c for c, v in zip(all_cats_str, lump_bool) if v}
-        top_n_set = set(all_cats_str) - lump_set
-      else:
-        top_n_set = set(non_null_counts.head(n)[name].cast(pl.String).to_list())
-      has_other = len(top_n_set) < non_null_counts.height
-      # Preserve original category order; Other is always appended last.
-      original_cats = _get_cats(lf, name, col_schema[name])
-      kept_cats = [c for c in original_cats if c in top_n_set]
-      new_cats = kept_cats + ([other_label] if has_other and other_label not in top_n_set else [])
-      if has_other:
-        col_expr = (
-          pl.when(pl.col(name).is_null())
-          .then(None)
-          .when(pl.col(name).cast(pl.String).is_in(top_n_set))
-          .then(pl.col(name).cast(pl.String))
-          .otherwise(pl.lit(other_label))
-          .cast(pl.Enum(new_cats))
-          .alias(name)
-        )
-      else:
-        col_expr = pl.col(name).cast(pl.Enum(new_cats)).alias(name)
-      result.append(col_expr)
-    return result
-
-  return resolver
+def _set_categories_impl(*, lf, name, col_ref, dtype, new_cats):
+  _require_enum(name, dtype)
+  return col_ref.cast(pl.String).cast(pl.Enum(new_cats), strict=False).alias(name)
 
 
-def _relabel_resolver(
-  expr: pl.Expr, mapping: Mapping[str, str] | Callable[[str], str], strict: bool
-):
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    result = []
-    for name in col_schema.names():
-      old_cats = _get_cats(lf, name, col_schema[name])
-      if callable(mapping):
-        new_cats = [mapping(c) for c in old_cats]
-      else:
-        if strict:
-          unknown = set(mapping.keys()) - set(old_cats)
-          if unknown:
-            raise ValueError(f"relabel strict=True: keys not in categories: {sorted(unknown)!r}")
-        new_cats = [mapping.get(c, c) for c in old_cats]
-      result.append(
-        pl.col(name).cast(pl.String).replace(old_cats, new_cats).cast(pl.Enum(new_cats)).alias(name)
-      )
-    return result
-
-  return resolver
+def _drop_unused_impl(*, lf, name, col_ref, dtype):
+  _require_enum(name, dtype)
+  old_cats = dtype.categories.to_list()
+  used = set(lf.select(col_ref.drop_nulls().unique()).collect()[name].to_list())
+  new_cats = [c for c in old_cats if c in used]
+  return col_ref.cast(pl.Enum(new_cats)).alias(name)
 
 
-def _missing_to_category_resolver(expr: pl.Expr, category_name: str):
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    result = []
-    for name in col_schema.names():
-      _require_enum(name, col_schema[name])
-      old_cats = col_schema[name].categories.to_list()
-      new_cats = old_cats if category_name in old_cats else old_cats + [category_name]
-      result.append(
-        pl.when(pl.col(name).is_null())
-        .then(pl.lit(category_name))
-        .otherwise(pl.col(name).cast(pl.String))
-        .cast(pl.Enum(new_cats))
-        .alias(name)
-      )
-    return result
-
-  return resolver
+def _add_categories_impl(*, lf, name, col_ref, dtype, new_cats_to_add, after):
+  _require_enum(name, dtype)
+  old_cats = dtype.categories.to_list()
+  pos = len(old_cats) if after >= len(old_cats) else max(0, int(after) + 1)
+  new_cats = old_cats[:pos] + new_cats_to_add + old_cats[pos:]
+  return col_ref.cast(pl.Enum(new_cats)).alias(name)
 
 
-def _category_to_missing_resolver(expr: pl.Expr, names: list[str]):
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    result = []
-    for name in col_schema.names():
-      _require_enum(name, col_schema[name])
-      old_cats = col_schema[name].categories.to_list()
-      unknown = set(names) - set(old_cats)
-      if unknown:
-        raise ValueError(f"category_to_missing: {sorted(unknown)!r} are not categories")
-      names_set = set(names)
-      new_cats = [c for c in old_cats if c not in names_set]
-      result.append(
-        pl.when(pl.col(name).cast(pl.String).is_in(names))
-        .then(None)
-        .otherwise(pl.col(name).cast(pl.String))
-        .cast(pl.Enum(new_cats))
-        .alias(name)
-      )
-    return result
-
-  return resolver
+def _rev_impl(*, lf, name, col_ref, dtype):
+  _require_enum(name, dtype)
+  return col_ref.cast(pl.Enum(dtype.categories.to_list()[::-1])).alias(name)
 
 
-def _set_categories_resolver(expr: pl.Expr, categories: Sequence[str]):
-  new_cats = list(categories)
-
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    for name in col_schema.names():
-      _require_enum(name, col_schema[name])
-    return [
-      pl.col(name).cast(pl.String).cast(pl.Enum(new_cats), strict=False).alias(name)
-      for name in col_schema.names()
-    ]
-
-  return resolver
-
-
-def _drop_unused_resolver(expr: pl.Expr):
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    result = []
-    for name in col_schema.names():
-      _require_enum(name, col_schema[name])
-      old_cats = col_schema[name].categories.to_list()
-      used = set(lf.select(pl.col(name).drop_nulls().unique()).collect()[name].to_list())
-      new_cats = [c for c in old_cats if c in used]  # preserves original order
-      result.append(pl.col(name).cast(pl.Enum(new_cats)).alias(name))
-    return result
-
-  return resolver
-
-
-def _add_categories_resolver(expr: pl.Expr, categories: Sequence[str], after: int | float):
-  new_cats_to_add = list(categories)
-
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    result = []
-    for name in col_schema.names():
-      _require_enum(name, col_schema[name])
-      old_cats = col_schema[name].categories.to_list()
-      pos = len(old_cats) if after >= len(old_cats) else max(0, int(after) + 1)
-      new_cats = old_cats[:pos] + new_cats_to_add + old_cats[pos:]
-      result.append(pl.col(name).cast(pl.Enum(new_cats)).alias(name))
-    return result
-
-  return resolver
-
-
-def _rev_resolver(expr: pl.Expr):
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    col_schema = lf.select(expr).collect_schema()
-    for name in col_schema.names():
-      _require_enum(name, col_schema[name])
-    return [
-      pl.col(name).cast(pl.Enum(col_schema[name].categories.to_list()[::-1])).alias(name)
-      for name in col_schema.names()
-    ]
-
-  return resolver
-
-
-def _reorder_resolver(
-  expr: pl.Expr,
-  bys: list[pl.Expr],
-  agg: Callable,
-  descending: bool | Sequence[bool],
-  nulls_last: bool | Sequence[bool],
-  missing: Literal["drop", "last", "first"],
-):
-  # Use stable internal names to avoid collision when a by-expr targets the group-by column.
-  _tmp = [f"__by_{i}__" for i in range(len(bys))]
-
-  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
-    desc = [descending] * len(bys) if isinstance(descending, bool) else list(descending)
-    nl = [nulls_last] * len(bys) if isinstance(nulls_last, bool) else list(nulls_last)
-
-    col_schema = lf.select(expr).collect_schema()
-    result = []
-    for name in col_schema.names():
-      order_df = (
-        lf.group_by(name).agg(agg(b).alias(t) for b, t in zip(bys, _tmp, strict=False)).collect()
-      )
-      has_null_agg = pl.any_horizontal(pl.col(t).is_null() for t in _tmp)
-      complete = order_df.filter(~has_null_agg).sort(_tmp, descending=desc, nulls_last=nl)
-      incomplete = order_df.filter(has_null_agg)
-
-      if missing == "drop":
-        ordered = complete
-      elif missing == "last":
-        ordered = pl.concat([complete, incomplete])
-      else:  # "first"
-        ordered = pl.concat([incomplete, complete])
-
-      order = ordered[name].drop_nulls().cast(pl.String).to_list()
-      result.append(pl.col(name).cast(pl.Enum(order)).alias(name))
-    return result
-
-  return resolver
+def _reorder_impl(*, lf, name, col_ref, dtype, bys, _tmp, agg, desc, nl, missing):
+  order_df = (
+    lf.group_by(col_ref).agg(agg(b).alias(t) for b, t in zip(bys, _tmp, strict=False)).collect()
+  )
+  has_null_agg = pl.any_horizontal(pl.col(t).is_null() for t in _tmp)
+  complete = order_df.filter(~has_null_agg).sort(_tmp, descending=desc, nulls_last=nl)
+  incomplete = order_df.filter(has_null_agg)
+  if missing == "drop":
+    ordered = complete
+  elif missing == "last":
+    ordered = pl.concat([complete, incomplete])
+  else:  # "first"
+    ordered = pl.concat([incomplete, complete])
+  order = ordered[name].drop_nulls().cast(pl.String).to_list()
+  return col_ref.cast(pl.Enum(order)).alias(name)
 
 
 @pl.api.register_expr_namespace("ps_enum")
@@ -281,7 +179,12 @@ class PolarstationEnumExpression:
     """
     if isinstance(make_null, str):
       make_null = [make_null]
-    return FrameExpr(self._expr, _make_resolver(self._expr, categories, list(make_null)))
+    return FrameExpr(
+      self._expr,
+      resolve_across_columns(
+        self._expr, _make_impl, categories=categories, make_null=list(make_null)
+      ),
+    )
 
   def missing_to_category(self, name: str) -> FrameExpr:
     """Convert null values into a new category `name`, appended at the end.
@@ -298,7 +201,10 @@ class PolarstationEnumExpression:
           new_animals = pl.col("animal").ps_enum.make().ps_enum.missing_to_category("unknown")
       )
     """
-    return FrameExpr(self._expr, _missing_to_category_resolver(self._expr, name))
+    return FrameExpr(
+      self._expr,
+      resolve_across_columns(self._expr, _missing_to_category_impl, category_name=name),
+    )
 
   def category_to_missing(self, name: str | Sequence[str]) -> FrameExpr:
     """Convert all occurrences of one or more categories to null and remove them from the Enum.
@@ -313,7 +219,10 @@ class PolarstationEnumExpression:
       )
     """
     names = [name] if isinstance(name, str) else list(name)
-    return FrameExpr(self._expr, _category_to_missing_resolver(self._expr, names))
+    return FrameExpr(
+      self._expr,
+      resolve_across_columns(self._expr, _category_to_missing_impl, names=names),
+    )
 
   def relabel(
     self,
@@ -343,7 +252,10 @@ class PolarstationEnumExpression:
       )
       ```
     """
-    return FrameExpr(self._expr, _relabel_resolver(self._expr, mapping, strict))
+    return FrameExpr(
+      self._expr,
+      resolve_across_columns(self._expr, _relabel_impl, mapping=mapping, strict=strict),
+    )
 
   def set_categories(self, categories: Sequence[str]) -> FrameExpr:
     """Set the exact category list. Values not in `categories` become null.
@@ -357,7 +269,10 @@ class PolarstationEnumExpression:
           pl.col("animal").ps_enum.make().ps_enum.set_categories(["cow", "dog"])
       )
     """
-    return FrameExpr(self._expr, _set_categories_resolver(self._expr, categories))
+    return FrameExpr(
+      self._expr,
+      resolve_across_columns(self._expr, _set_categories_impl, new_cats=list(categories)),
+    )
 
   def drop_unused(self) -> FrameExpr:
     """Remove categories that don't appear in the data, preserving order.
@@ -368,7 +283,7 @@ class PolarstationEnumExpression:
       )
       df.ps.with_columns(pl.col("x").ps_enum.drop_unused())["x"].dtype
     """
-    return FrameExpr(self._expr, _drop_unused_resolver(self._expr))
+    return FrameExpr(self._expr, resolve_across_columns(self._expr, _drop_unused_impl))
 
   def add_categories(
     self, categories: Sequence[str], after: int | float = float("inf")
@@ -385,7 +300,12 @@ class PolarstationEnumExpression:
           pl.col("animal").ps_enum.make().ps_enum.add_categories(["rabbit"], after=1)
       )["animal"].dtype
     """
-    return FrameExpr(self._expr, _add_categories_resolver(self._expr, categories, after))
+    return FrameExpr(
+      self._expr,
+      resolve_across_columns(
+        self._expr, _add_categories_impl, new_cats_to_add=list(categories), after=after
+      ),
+    )
 
   def lump(
     self,
@@ -416,7 +336,12 @@ class PolarstationEnumExpression:
           pl.col("animal").ps_enum.make().ps_enum.lump(n=1)
       )
     """
-    return FrameExpr(self._expr, _lump_resolver(self._expr, n, other_label, lump_fn))
+    return FrameExpr(
+      self._expr,
+      resolve_across_columns(
+        self._expr, _lump_impl, n=n, other_label=other_label, lump_fn=lump_fn
+      ),
+    )
 
   def rev(self) -> FrameExpr:
     """Reverse the order of categories.
@@ -427,7 +352,7 @@ class PolarstationEnumExpression:
           pl.col("animal").ps_enum.make().ps_enum.rev()
       )["animal"].dtype
     """
-    return FrameExpr(self._expr, _rev_resolver(self._expr))
+    return FrameExpr(self._expr, resolve_across_columns(self._expr, _rev_impl))
 
   def infreq(self, descending: bool = False) -> FrameExpr:
     """Reorder categories by frequency, most frequent first.
@@ -475,6 +400,19 @@ class PolarstationEnumExpression:
       )["animal"].dtype
     """
     bys = [_into_expr(by)] if isinstance(by, (pl.Expr, str)) else [_into_expr(b) for b in by]
+    _tmp = [f"__by_{i}__" for i in range(len(bys))]
+    desc = [descending] * len(bys) if isinstance(descending, bool) else list(descending)
+    nl = [nulls_last] * len(bys) if isinstance(nulls_last, bool) else list(nulls_last)
     return FrameExpr(
-      self._expr, _reorder_resolver(self._expr, bys, agg, descending, nulls_last, missing)
+      self._expr,
+      resolve_across_columns(
+        self._expr,
+        _reorder_impl,
+        bys=bys,
+        _tmp=_tmp,
+        agg=agg,
+        desc=desc,
+        nl=nl,
+        missing=missing,
+      ),
     )

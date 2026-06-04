@@ -43,6 +43,13 @@ class FrameExpr:
       In the meantime, prefer placing independent ``FrameExpr`` columns in the
       *same* ``ps.with_columns(...)`` call rather than chaining multiple calls, so
       each lazy plan (with its pushdown) is only materialised once.
+
+  Performance: expressions that are expensive to evaluate
+      Under the hood every resolver references the original ``expr`` via
+      ``pl.struct(expr).struct.field(name)``. This means for a regular expression
+      like ``expr.mean()`` this will only evaluated because of polars common subexpression
+      elemination. However, for user-defined python function called via ``map_elements`` or
+      ``map_batches`` polars does not apply these optimization and they are called twice.
   """
 
   def __init__(self, col_expr: pl.Expr, resolver: Callable[[pl.LazyFrame], list[pl.Expr]]):
@@ -75,6 +82,33 @@ class FrameExpr:
       return method
     else:
       return FrameNamespaceProxy(attr, name, self)
+
+
+def resolve_across_columns(
+  expr: pl.Expr,
+  fn: Callable,
+  **kwargs,
+) -> Callable[[pl.LazyFrame], list[pl.Expr]]:
+  """Return a resolver that calls fn once per output column of expr.
+
+  fn must accept keyword arguments: lf, name, col_ref, dtype, plus any **kwargs.
+
+  col_ref = pl.struct(expr).struct.field(name) — evaluates the column values
+  correctly for any expression shape: real column references, multi-column
+  selectors, transforms, and when/then/otherwise with synthetic output names
+  (e.g. 'literal'). This is the correct reference to use instead of pl.col(name),
+  which breaks when name is not a column in lf or when values are transformed.
+  """
+
+  def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+    col_schema = lf.select(expr).collect_schema()
+    result = []
+    for name in col_schema.names():
+      col_ref = pl.struct(expr).struct.field(name)
+      result.append(fn(lf=lf, name=name, col_ref=col_ref, dtype=col_schema[name], **kwargs))
+    return result
+
+  return resolver
 
 
 class FrameNamespaceProxy:
