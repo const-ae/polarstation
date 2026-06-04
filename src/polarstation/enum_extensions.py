@@ -118,11 +118,34 @@ def _drop_unused_impl(*, lf, name, col_ref, dtype):
   return col_ref.cast(pl.Enum(new_cats)).alias(name)
 
 
-def _add_categories_impl(*, lf, name, col_ref, dtype, new_cats_to_add, after):
+def _add_categories_impl(*, lf, name, col_ref, dtype, new_cats_to_add, before):
   _require_enum(name, dtype)
   old_cats = dtype.categories.to_list()
-  pos = len(old_cats) if after >= len(old_cats) else max(0, int(after) + 1)
+  if before is None:
+    pos = len(old_cats)
+  elif before >= 0:
+    pos = min(before, len(old_cats))
+  else:
+    pos = max(0, len(old_cats) + before)
   new_cats = old_cats[:pos] + new_cats_to_add + old_cats[pos:]
+  return col_ref.cast(pl.Enum(new_cats)).alias(name)
+
+
+def _move_impl(*, lf, name, col_ref, dtype, levels, before):
+  _require_enum(name, dtype)
+  old_cats = dtype.categories.to_list()
+  unknown = set(levels) - set(old_cats)
+  if unknown:
+    raise ValueError(f"move: {sorted(unknown)!r} are not existing categories")
+  levels_set = set(levels)
+  rest = [c for c in old_cats if c not in levels_set]
+  if before is None:
+    pos = len(rest)
+  elif before >= 0:
+    pos = min(before, len(rest))
+  else:
+    pos = max(0, len(rest) + before)
+  new_cats = rest[:pos] + list(levels) + rest[pos:]
   return col_ref.cast(pl.Enum(new_cats)).alias(name)
 
 
@@ -286,25 +309,48 @@ class PolarstationEnumExpression:
     return FrameExpr(self._expr, resolve_across_columns(self._expr, _drop_unused_impl))
 
   def add_categories(
-    self, categories: Sequence[str], after: int | float = float("inf")
+    self, categories: Sequence[str], before: int | None = None
   ) -> FrameExpr:
     """Insert new categories without changing any values.
 
     Args:
       categories: New category labels to add.
-      after: Insert after this 0-based index. Defaults to appending at the end.
+      before: Insert before this 0-based index of the existing categories.
+        ``None`` (default) appends at the end. Negative indices count from the end.
+        Any value ≥ len(categories) is equivalent to ``None`` (end).
 
     Examples:
       animals = polarstation.make_example_data("animals")
       animals.ps.with_columns(
-          pl.col("animal").ps_enum.make().ps_enum.add_categories(["rabbit"], after=1)
+          pl.col("animal").ps_enum.make().ps_enum.add_categories(["rabbit"], before=1)
       )["animal"].dtype
     """
     return FrameExpr(
       self._expr,
       resolve_across_columns(
-        self._expr, _add_categories_impl, new_cats_to_add=list(categories), after=after
+        self._expr, _add_categories_impl, new_cats_to_add=list(categories), before=before
       ),
+    )
+
+  def move(self, *levels: str, before: int | None = 0) -> FrameExpr:
+    """Move specified categories to a given position, keeping all others in their relative order.
+
+    Args:
+      *levels: Category names to move, in the order they should appear at the destination.
+      before: Insert before this 0-based index of the remaining categories.
+        ``0`` (default) moves to the front. ``None`` appends at the end.
+        Negative indices count from the end of the remaining categories.
+        Any value ≥ len(remaining) is equivalent to ``None`` (end).
+
+    Examples:
+      animals = polarstation.make_example_data("animals")
+      animals.ps.with_columns(
+          pl.col("animal").ps_enum.make().ps_enum.move("dog")
+      )["animal"].dtype
+    """
+    return FrameExpr(
+      self._expr,
+      resolve_across_columns(self._expr, _move_impl, levels=levels, before=before),
     )
 
   def lump(

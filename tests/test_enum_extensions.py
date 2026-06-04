@@ -88,8 +88,8 @@ def test_add_categories_appends_by_default():
     assert r["x"].dtype.categories.to_list() == ["a", "b", "c", "d", "e"]
 
 
-def test_add_categories_after_index():
-    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.add_categories(["d"], after=0))
+def test_add_categories_before_index():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.add_categories(["d"], before=1))
     assert r["x"].dtype.categories.to_list() == ["a", "d", "b", "c"]
 
 
@@ -198,6 +198,54 @@ def test_lump_custom_label():
 def test_lump_no_collapse():
     r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.lump(n=10))
     assert "Other" not in r["x"].dtype.categories
+
+
+# ── move ──────────────────────────────────────────────────────────────────────
+
+
+def test_move_to_front():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.move("c"))
+    assert r["x"].dtype.categories.to_list() == ["c", "a", "b"]
+
+
+def test_move_to_end():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.move("a", before=None))
+    assert r["x"].dtype.categories.to_list() == ["b", "c", "a"]
+
+
+def test_move_before_index():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.move("a", before=1))
+    assert r["x"].dtype.categories.to_list() == ["b", "a", "c"]
+
+
+def test_move_negative_index():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.move("a", before=-1))
+    assert r["x"].dtype.categories.to_list() == ["b", "a", "c"]
+
+
+def test_move_large_index_is_end():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.move("a", before=99))
+    assert r["x"].dtype.categories.to_list() == ["b", "c", "a"]
+
+
+def test_move_multiple():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.move("c", "a"))
+    assert r["x"].dtype.categories.to_list() == ["c", "a", "b"]
+
+
+def test_move_preserves_values():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.move("c"))
+    assert r["x"].to_list() == BASE["x"].cast(pl.Enum(["a", "b", "c"])).to_list()
+
+
+def test_move_preserves_nulls():
+    r = BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.move("c"))
+    assert r["x"].null_count() == 2
+
+
+def test_move_unknown_raises():
+    with pytest.raises(ValueError, match="move"):
+        BASE.ps.with_columns(pl.col("x").ps_enum.make().ps_enum.move("z"))
 
 
 # ── reorder ───────────────────────────────────────────────────────────────────
