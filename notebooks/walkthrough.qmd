@@ -125,8 +125,9 @@ def lump_lowfreq(df):
     label = (pl.col('species') + "-" + pl.col('island'))
       .str.to_lowercase()
       .ps_enum.lump(lump_fn = lump_lowfreq)
-      .ps_enum.re
       .ps_enum.infreq()
+      .ps_enum.move("Other", before = 0)
+      .ps_enum.rename({"Other": "other"})
   )
   .pipe(ggplot, aes(x = 'label')) +
     geom_bar()
@@ -141,11 +142,12 @@ in polars. They are inspired by the [santoku](https://hughjonesd.github.io/santo
 package in R.
 
 ```{python}
-(mod_penguins
-  .ps.with_columns(
-    beak_size = pl.col('bill_length_mm').ps_chop.chop(breaks = [40, 50])
-  )
-  .group_by('beak_size', 'species').agg(pl.len()).sort('species', 'beak_size')
+(penguins.ps.with_columns(
+  beak_size= pl.col("bill_length_mm")
+    .ps_chop.chop(breaks=[40, 50]))
+    .group_by("beak_size", "species")
+    .agg(pl.len())
+    .sort("species", "beak_size")
 )
 ```
 
