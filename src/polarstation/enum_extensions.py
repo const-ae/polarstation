@@ -36,7 +36,7 @@ def _make_impl(*, lf, name, col_ref, dtype, categories, make_null):
   str_col = col_ref.cast(pl.String)
   if make_null:
     str_col = pl.when(str_col.is_in(make_null)).then(None).otherwise(str_col)
-  return str_col.cast(pl.Enum(cats)).alias(name)
+  return str_col.cast(pl.Enum(cats))
 
 
 def _lump_impl(*, lf, name, col_ref, dtype, n, other_label, lump_fn):
@@ -62,9 +62,8 @@ def _lump_impl(*, lf, name, col_ref, dtype, n, other_label, lump_fn):
       .then(col_ref.cast(pl.String))
       .otherwise(pl.lit(other_label))
       .cast(pl.Enum(new_cats))
-      .alias(name)
     )
-  return col_ref.cast(pl.Enum(new_cats)).alias(name)
+  return col_ref.cast(pl.Enum(new_cats))
 
 
 def _rename_impl(*, lf, name, col_ref, dtype, mapping, strict):
@@ -79,9 +78,7 @@ def _rename_impl(*, lf, name, col_ref, dtype, mapping, strict):
     new_cats_full = [mapping.get(c, c) for c in old_cats]
   seen: set[str] = set()
   new_cats = [c for c in new_cats_full if not (c in seen or seen.add(c))]  # type: ignore[func-returns-value]
-  return (
-    col_ref.cast(pl.String).replace(old_cats, new_cats_full).cast(pl.Enum(new_cats)).alias(name)
-  )
+  return col_ref.cast(pl.String).replace(old_cats, new_cats_full).cast(pl.Enum(new_cats))
 
 
 def _missing_to_category_impl(*, lf, name, col_ref, dtype, category_name):
@@ -93,7 +90,6 @@ def _missing_to_category_impl(*, lf, name, col_ref, dtype, category_name):
     .then(pl.lit(category_name))
     .otherwise(col_ref.cast(pl.String))
     .cast(pl.Enum(new_cats))
-    .alias(name)
   )
 
 
@@ -110,13 +106,12 @@ def _category_to_missing_impl(*, lf, name, col_ref, dtype, names):
     .then(None)
     .otherwise(col_ref.cast(pl.String))
     .cast(pl.Enum(new_cats))
-    .alias(name)
   )
 
 
 def _set_categories_impl(*, lf, name, col_ref, dtype, new_cats):
   _require_enum(name, dtype)
-  return col_ref.cast(pl.String).cast(pl.Enum(new_cats), strict=False).alias(name)
+  return col_ref.cast(pl.String).cast(pl.Enum(new_cats), strict=False)
 
 
 def _drop_unused_impl(*, lf, name, col_ref, dtype):
@@ -124,7 +119,7 @@ def _drop_unused_impl(*, lf, name, col_ref, dtype):
   old_cats = dtype.categories.to_list()
   used = set(lf.select(col_ref.drop_nulls().unique()).collect()[name].to_list())
   new_cats = [c for c in old_cats if c in used]
-  return col_ref.cast(pl.Enum(new_cats)).alias(name)
+  return col_ref.cast(pl.Enum(new_cats))
 
 
 def _add_categories_impl(*, lf, name, col_ref, dtype, new_cats_to_add, before):
@@ -137,7 +132,7 @@ def _add_categories_impl(*, lf, name, col_ref, dtype, new_cats_to_add, before):
   else:
     pos = max(0, len(old_cats) + before)
   new_cats = old_cats[:pos] + new_cats_to_add + old_cats[pos:]
-  return col_ref.cast(pl.Enum(new_cats)).alias(name)
+  return col_ref.cast(pl.Enum(new_cats))
 
 
 def _move_impl(*, lf, name, col_ref, dtype, levels, before):
@@ -155,12 +150,12 @@ def _move_impl(*, lf, name, col_ref, dtype, levels, before):
   else:
     pos = max(0, len(rest) + before)
   new_cats = rest[:pos] + list(levels) + rest[pos:]
-  return col_ref.cast(pl.Enum(new_cats)).alias(name)
+  return col_ref.cast(pl.Enum(new_cats))
 
 
 def _rev_impl(*, lf, name, col_ref, dtype):
   _require_enum(name, dtype)
-  return col_ref.cast(pl.Enum(dtype.categories.to_list()[::-1])).alias(name)
+  return col_ref.cast(pl.Enum(dtype.categories.to_list()[::-1]))
 
 
 def _reorder_impl(*, lf, name, col_ref, dtype, bys, _tmp, agg, desc, nl, missing):
@@ -177,7 +172,7 @@ def _reorder_impl(*, lf, name, col_ref, dtype, bys, _tmp, agg, desc, nl, missing
   else:  # "first"
     ordered = pl.concat([incomplete, complete])
   order = ordered[name].drop_nulls().cast(pl.String).to_list()
-  return col_ref.cast(pl.Enum(order)).alias(name)
+  return col_ref.cast(pl.Enum(order))
 
 
 @pl.api.register_expr_namespace("ps_enum")

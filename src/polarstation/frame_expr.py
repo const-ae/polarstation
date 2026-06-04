@@ -105,7 +105,8 @@ def resolve_across_columns(
     result = []
     for name in col_schema.names():
       col_ref = pl.struct(expr).struct.field(name)
-      result.append(fn(lf=lf, name=name, col_ref=col_ref, dtype=col_schema[name], **kwargs))
+      expr_result = fn(lf=lf, name=name, col_ref=col_ref, dtype=col_schema[name], **kwargs)
+      result.append(expr_result.alias(name))
     return result
 
   return resolver

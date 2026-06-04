@@ -234,7 +234,6 @@ def _make_enum_labels(
 
 def _cut_enum_expr(
   col_ref: pl.Expr,
-  name: str,
   breaks_phys: list[int],
   labels: list[str],
   left_closed: bool,
@@ -273,16 +272,16 @@ def _cut_enum_expr(
     return pl.struct(
       lo=pl.lit(pl.Series(lo_cats, dtype=pl.String)).gather(idx),
       hi=pl.lit(pl.Series(hi_cats, dtype=pl.String)).gather(idx),
-    ).alias(name)
-  return cat_expr.alias(name)
+    )
+  return cat_expr
 
 
-def _enum_null_result(name: str, labels: Sequence[str] | None, return_struct: bool) -> pl.Expr:
+def _enum_null_result(labels: Sequence[str] | None, return_struct: bool) -> pl.Expr:
   """Fallback for empty/all-null categorical columns."""
   labs = list(labels) if labels is not None else ["[-∞, ∞)"]
   if return_struct:
-    return pl.struct(lo=pl.lit(None, dtype=pl.String), hi=pl.lit(None, dtype=pl.String)).alias(name)
-  return pl.lit(None).cast(pl.Enum(labs)).alias(name)
+    return pl.struct(lo=pl.lit(None, dtype=pl.String), hi=pl.lit(None, dtype=pl.String))
+  return pl.lit(None).cast(pl.Enum(labs))
 
 
 # ── cut helpers ───────────────────────────────────────────────────────────────
@@ -328,7 +327,6 @@ def _brk_n(xs: list, n: int, tail: str, left_closed: bool = True) -> list:
 
 def _cut_expr(
   col_ref: pl.Expr,
-  name: str,
   breaks: list[float],
   labels: Sequence[str],
   left_closed: bool,
@@ -362,13 +360,12 @@ def _cut_expr(
     else:
       lo_lit = pl.lit(pl.Series(bounds[:-1], dtype=pl.Float64))
       hi_lit = pl.lit(pl.Series(bounds[1:], dtype=pl.Float64))
-    return pl.struct(lo=lo_lit.gather(idx), hi=hi_lit.gather(idx)).alias(name)
-  return cat_expr.alias(name)
+    return pl.struct(lo=lo_lit.gather(idx), hi=hi_lit.gather(idx))
+  return cat_expr
 
 
 def _cut_physical_representation_expr(
   col_ref: pl.Expr,
-  name: str,
   breaks_phys: list[int],
   labels: list[str],
   left_closed: bool,
@@ -391,8 +388,8 @@ def _cut_physical_representation_expr(
     return pl.struct(
       lo=pl.lit(lo_series).gather(idx),
       hi=pl.lit(hi_series).gather(idx),
-    ).alias(name)
-  return cat_expr.alias(name)
+    )
+  return cat_expr
 
 
 # ── labeled cut wrappers ──────────────────────────────────────────────────────
@@ -402,7 +399,6 @@ def _cut_physical_representation_expr(
 
 def _labeled_physical_representation_cut(
   col_ref: pl.Expr,
-  name: str,
   breaks_phys: list[int],
   lo_phys: int,
   hi_phys: int,
@@ -420,13 +416,12 @@ def _labeled_physical_representation_cut(
     )
   )
   return _cut_physical_representation_expr(
-    col_ref, name, breaks_phys, labs, left_closed, return_struct, lo_phys, hi_phys, dtype
+    col_ref, breaks_phys, labs, left_closed, return_struct, lo_phys, hi_phys, dtype
   )
 
 
 def _labeled_enum_cut(
   col_ref: pl.Expr,
-  name: str,
   breaks_phys: list[int],
   lo_phys: int,
   hi_phys: int,
@@ -442,13 +437,12 @@ def _labeled_enum_cut(
     else _make_enum_labels(breaks_phys, left_closed, lo_phys, hi_phys, categories, fmt)
   )
   return _cut_enum_expr(
-    col_ref, name, breaks_phys, labs, left_closed, return_struct, lo_phys, hi_phys, categories
+    col_ref, breaks_phys, labs, left_closed, return_struct, lo_phys, hi_phys, categories
   )
 
 
 def _labeled_num_cut(
   col_ref: pl.Expr,
-  name: str,
   breaks: list[float],
   lo: float,
   hi: float,
@@ -465,7 +459,7 @@ def _labeled_num_cut(
   else:
     labs = _make_labels(breaks, left_closed, fmt, lo=lo, hi=hi)
   return _cut_expr(
-    col_ref, name, breaks, labs, left_closed, return_struct,
+    col_ref, breaks, labs, left_closed, return_struct,
     lo=lo, hi=hi, discrete=_is_integer(dtype)
   )
 
@@ -573,7 +567,7 @@ def _chop_numeric(
     else:
       label_lo, label_hi = float(raw_lo), float(raw_hi)
   return _labeled_num_cut(
-    col_ref, name, breaks, label_lo, label_hi, dtype, labels, left_closed, actual_fmt, return_struct
+    col_ref, breaks, label_lo, label_hi, dtype, labels, left_closed, actual_fmt, return_struct
   )
 
 
@@ -604,18 +598,18 @@ def _chop_categorical(
     # that a break can partition on a value not present in the data.
     observed = lf.select(col_ref.drop_nulls().unique().sort()).collect()[name].to_list()
     if not observed:
-      return _enum_null_result(name, labels, return_struct)
+      return _enum_null_result(labels, return_struct)
     categories = sorted(set(observed) | set(breaks))
   breaks_phys = sorted(categories.index(b) for b in breaks)
   phys_expr = col_ref.cast(pl.Enum(categories)).to_physical()
   mn_p, mx_p = _min_max(lf, phys_expr)
   if mn_p is None or mx_p is None:
-    return _enum_null_result(name, labels, return_struct)
+    return _enum_null_result(labels, return_struct)
   lo_phys = int(mn_p)
   # Clamp hi_phys upward so a break beyond all observed values is still within bounds.
   hi_phys = max(int(mx_p), breaks_phys[-1] if breaks_phys else int(mx_p))
   return _labeled_enum_cut(
-    col_ref, name, breaks_phys, lo_phys, hi_phys, categories,
+    col_ref, breaks_phys, lo_phys, hi_phys, categories,
     labels, left_closed, fmt, return_struct
   )
 
@@ -643,7 +637,7 @@ def _chop_temporal(
     lo_phys = int(pl.Series([raw_lo]).cast(dtype).to_physical()[0])
     hi_phys = int(pl.Series([raw_hi]).cast(dtype).to_physical()[0])
   return _labeled_physical_representation_cut(
-    col_ref, name, phys_breaks, lo_phys, hi_phys, dtype, labels, left_closed, fmt, return_struct
+    col_ref, phys_breaks, lo_phys, hi_phys, dtype, labels, left_closed, fmt, return_struct
   )
 
 
@@ -674,7 +668,7 @@ def _width_temporal(
   raw_lo, raw_hi = _min_max(lf, col_ref)
   if raw_lo is None or raw_hi is None:
     return _cut_physical_representation_expr(
-      col_ref, name, [], ["[-∞, ∞)"], left_closed, return_struct, 0, 0, dtype
+      col_ref, [], ["[-∞, ∞)"], left_closed, return_struct, 0, 0, dtype
     )
   lo_phys = (
     int(pl.Series([start]).cast(dtype).to_physical()[0])
@@ -686,7 +680,7 @@ def _width_temporal(
   breaks_phys = [lo_phys + size_phys * i for i in range(1, n_bins)]
   label_hi_phys = lo_phys + n_bins * size_phys
   return _labeled_physical_representation_cut(
-    col_ref, name, breaks_phys, lo_phys, label_hi_phys, dtype,
+    col_ref, breaks_phys, lo_phys, label_hi_phys, dtype,
     labels, left_closed, fmt, return_struct
   )
 
@@ -712,11 +706,11 @@ def _width_categorical(
     )
   categories = _get_categories(lf, col_ref, name, dtype)
   if not categories:
-    return _enum_null_result(name, labels, return_struct)
+    return _enum_null_result(labels, return_struct)
   phys_expr = col_ref.cast(pl.Enum(categories)).to_physical()
   mn_p, mx_p = _min_max(lf, phys_expr)
   if mn_p is None or mx_p is None:
-    return _enum_null_result(name, labels, return_struct)
+    return _enum_null_result(labels, return_struct)
   lo_phys = categories.index(start) if start is not None else int(mn_p)
   hi_data = int(mx_p)
   n_bins = max(1, math.ceil((hi_data - lo_phys) / size))
@@ -728,7 +722,6 @@ def _width_categorical(
     label_hi_phys = min(lo_phys + n_bins * size, len(categories) - 1)
   return _labeled_enum_cut(
     col_ref,
-    name,
     breaks_phys,
     label_lo_phys,
     label_hi_phys,
@@ -779,7 +772,7 @@ def _width_numeric(
       # For integer dtypes, cap at data max so discrete labels don't overshoot
       label_hi = float(raw_hi_f) if _is_integer(dtype) else lo + n_bins * float(size)
   return _labeled_num_cut(
-    col_ref, name, breaks_list, label_lo, label_hi, dtype, labels, left_closed, actual_fmt,
+    col_ref, breaks_list, label_lo, label_hi, dtype, labels, left_closed, actual_fmt,
     return_struct
   )
 
@@ -806,12 +799,12 @@ def _n_elements_temporal(
   if not xs_phys:
     labs = list(labels) if labels is not None else ["[-∞, ∞)"]
     return _cut_physical_representation_expr(
-      col_ref, name, [], labs, left_closed, return_struct, 0, 0, dtype
+      col_ref, [], labs, left_closed, return_struct, 0, 0, dtype
     )
   breaks_phys = _brk_n(xs_phys, n, tail, left_closed)
   lo_phys, hi_phys = xs_phys[0], xs_phys[-1]
   return _labeled_physical_representation_cut(
-    col_ref, name, breaks_phys, lo_phys, hi_phys, dtype, labels, left_closed, None, return_struct
+    col_ref, breaks_phys, lo_phys, hi_phys, dtype, labels, left_closed, None, return_struct
   )
 
 
@@ -837,12 +830,12 @@ def _n_elements_categorical(
     .to_list()
   )
   if not xs_phys:
-    return _enum_null_result(name, labels, return_struct)
+    return _enum_null_result(labels, return_struct)
   breaks_phys = _brk_n(xs_phys, n, tail, left_closed)
   lo_phys = 0 if extend else xs_phys[0]
   hi_phys = len(categories) - 1 if extend else xs_phys[-1]
   return _labeled_enum_cut(
-    col_ref, name, breaks_phys, lo_phys, hi_phys, categories, labels, left_closed, None,
+    col_ref, breaks_phys, lo_phys, hi_phys, categories, labels, left_closed, None,
     return_struct
   )
 
@@ -871,7 +864,7 @@ def _n_elements_numeric(
   else:
     label_lo, label_hi = xs_f[0], xs_f[-1]
   return _labeled_num_cut(
-    col_ref, name, breaks_list, label_lo, label_hi, dtype, labels, left_closed, fmt, return_struct
+    col_ref, breaks_list, label_lo, label_hi, dtype, labels, left_closed, fmt, return_struct
   )
 
 
@@ -899,7 +892,7 @@ def _quantiles_temporal(
   lo_phys = int(mn_p) if mn_p is not None else 0
   hi_phys = int(mx_p) if mx_p is not None else 0
   return _labeled_physical_representation_cut(
-    col_ref, name, breaks_phys, lo_phys, hi_phys, dtype, labels, left_closed, fmt, return_struct
+    col_ref, breaks_phys, lo_phys, hi_phys, dtype, labels, left_closed, fmt, return_struct
   )
 
 
@@ -920,15 +913,15 @@ def _quantiles_categorical(
   del raw
   categories = _get_categories(lf, col_ref, name, dtype)
   if not categories:
-    return _enum_null_result(name, labels, return_struct)
+    return _enum_null_result(labels, return_struct)
   phys_expr = col_ref.cast(pl.Enum(categories)).to_physical()
   breaks_phys, mn_p, mx_p = _quantile_breaks_physical_representation(lf, probs, phys_expr)
   if mn_p is None or mx_p is None:
-    return _enum_null_result(name, labels, return_struct)
+    return _enum_null_result(labels, return_struct)
   lo_phys = 0 if extend else int(mn_p)
   hi_phys = len(categories) - 1 if extend else int(mx_p)
   return _labeled_enum_cut(
-    col_ref, name, breaks_phys, lo_phys, hi_phys, categories,
+    col_ref, breaks_phys, lo_phys, hi_phys, categories,
     labels, left_closed, fmt, return_struct
   )
 
@@ -947,6 +940,7 @@ def _quantiles_numeric(
   extend: bool,
   return_struct: bool,
 ) -> pl.Expr:
+  del name
   actual_fmt = fmt if fmt is not None else ("g" if raw else ".0%")
   breaks_list, kept_probs, mn, mx = _quantile_breaks_float(lf, probs, col_ref)
   if mn is None or mx is None:
@@ -957,7 +951,7 @@ def _quantiles_numeric(
     bound_lo, bound_hi = float(mn), float(mx)
   if raw:
     return _labeled_num_cut(
-      col_ref, name, breaks_list, bound_lo, bound_hi, dtype, labels, left_closed, actual_fmt,
+      col_ref, breaks_list, bound_lo, bound_hi, dtype, labels, left_closed, actual_fmt,
       return_struct
     )
   auto_labels = (
@@ -967,7 +961,6 @@ def _quantiles_numeric(
   )
   return _cut_expr(
     col_ref,
-    name,
     breaks_list,
     auto_labels,
     left_closed,

@@ -58,6 +58,6 @@ class PolarstationExpression:
     expr = self._expr
 
     def handler(*, lf, name, col_ref, dtype):
-      return fn(lf, col_ref).alias(name)
+      return fn(lf, col_ref)
 
     return FrameExpr(expr, resolve_across_columns(expr, handler))
