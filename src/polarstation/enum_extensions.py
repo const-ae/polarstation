@@ -62,7 +62,7 @@ def _lump_impl(*, lf, name, col_ref, dtype, n, other_label, lump_fn):
   return col_ref.cast(pl.Enum(new_cats)).alias(name)
 
 
-def _relabel_impl(*, lf, name, col_ref, dtype, mapping, strict):
+def _rename_impl(*, lf, name, col_ref, dtype, mapping, strict):
   old_cats = _get_cats(lf, col_ref, name, dtype)
   if callable(mapping):
     new_cats = [mapping(c) for c in old_cats]
@@ -70,7 +70,7 @@ def _relabel_impl(*, lf, name, col_ref, dtype, mapping, strict):
     if strict:
       unknown = set(mapping.keys()) - set(old_cats)
       if unknown:
-        raise ValueError(f"relabel strict=True: keys not in categories: {sorted(unknown)!r}")
+        raise ValueError(f"rename strict=True: keys not in categories: {sorted(unknown)!r}")
     new_cats = [mapping.get(c, c) for c in old_cats]
   return col_ref.cast(pl.String).replace(old_cats, new_cats).cast(pl.Enum(new_cats)).alias(name)
 
@@ -224,7 +224,7 @@ class PolarstationEnumExpression:
       resolve_across_columns(self._expr, _category_to_missing_impl, names=names),
     )
 
-  def relabel(
+  def rename(
     self,
     mapping: Mapping[str, str] | Callable[[str], str],
     strict: bool = True,
@@ -242,19 +242,19 @@ class PolarstationEnumExpression:
       ```{python}
       animals = polarstation.make_example_data("animals")
       animals.ps.with_columns(
-          pl.col("animal").ps_enum.make().ps_enum.relabel({"bird": "Bird", "cow": "Cow"})
+          pl.col("animal").ps_enum.make().ps_enum.rename({"bird": "Bird", "cow": "Cow"})
       )
       ```
 
       ```{python}
       animals.ps.with_columns(
-          pl.col("animal").ps_enum.make().ps_enum.relabel(str.upper)
+          pl.col("animal").ps_enum.make().ps_enum.rename(str.upper)
       )
       ```
     """
     return FrameExpr(
       self._expr,
-      resolve_across_columns(self._expr, _relabel_impl, mapping=mapping, strict=strict),
+      resolve_across_columns(self._expr, _rename_impl, mapping=mapping, strict=strict),
     )
 
   def set_categories(self, categories: Sequence[str]) -> FrameExpr:

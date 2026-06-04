@@ -98,9 +98,9 @@ def test_drop_unused_collects_only_unique_values(large_enum_lf):
         ),
         pytest.param(
             lambda lf, cats: lf.ps.with_columns(
-                pl.col("group").ps_enum.relabel({"0": "zero"})
+                pl.col("group").ps_enum.rename({"0": "zero"})
             ),
-            id="relabel",
+            id="rename",
         ),
         pytest.param(
             lambda lf, cats: lf.ps.with_columns(

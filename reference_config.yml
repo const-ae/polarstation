@@ -29,8 +29,8 @@ sections:
         path: enum_extensions.PolarstationEnumExpression.make
       - display: Expr.ps_enum.lump
         path: enum_extensions.PolarstationEnumExpression.lump
-      - display: Expr.ps_enum.relabel
-        path: enum_extensions.PolarstationEnumExpression.relabel
+      - display: Expr.ps_enum.rename
+        path: enum_extensions.PolarstationEnumExpression.rename
       - display: Expr.ps_enum.rev
         path: enum_extensions.PolarstationEnumExpression.rev
       - display: Expr.ps_enum.infreq
