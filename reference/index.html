@@ -181,12 +181,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#expr-ps-enum-make" id="toc-expr-ps-enum-make" class="nav-link" data-scroll-target="#expr-ps-enum-make">Expr.ps_enum.make</a></li>
   <li><a href="#expr-ps-enum-lump" id="toc-expr-ps-enum-lump" class="nav-link" data-scroll-target="#expr-ps-enum-lump">Expr.ps_enum.lump</a></li>
-  <li><a href="#expr-ps-enum-relabel" id="toc-expr-ps-enum-relabel" class="nav-link" data-scroll-target="#expr-ps-enum-relabel">Expr.ps_enum.relabel</a></li>
+  <li><a href="#expr-ps-enum-rename" id="toc-expr-ps-enum-rename" class="nav-link" data-scroll-target="#expr-ps-enum-rename">Expr.ps_enum.rename</a></li>
   <li><a href="#expr-ps-enum-rev" id="toc-expr-ps-enum-rev" class="nav-link" data-scroll-target="#expr-ps-enum-rev">Expr.ps_enum.rev</a></li>
   <li><a href="#expr-ps-enum-infreq" id="toc-expr-ps-enum-infreq" class="nav-link" data-scroll-target="#expr-ps-enum-infreq">Expr.ps_enum.infreq</a></li>
   <li><a href="#expr-ps-enum-reorder" id="toc-expr-ps-enum-reorder" class="nav-link" data-scroll-target="#expr-ps-enum-reorder">Expr.ps_enum.reorder</a></li>
   <li><a href="#expr-ps-enum-set-categories" id="toc-expr-ps-enum-set-categories" class="nav-link" data-scroll-target="#expr-ps-enum-set-categories">Expr.ps_enum.set_categories</a></li>
+  <li><a href="#expr-ps-enum-unify" id="toc-expr-ps-enum-unify" class="nav-link" data-scroll-target="#expr-ps-enum-unify">Expr.ps_enum.unify</a></li>
   <li><a href="#expr-ps-enum-add-categories" id="toc-expr-ps-enum-add-categories" class="nav-link" data-scroll-target="#expr-ps-enum-add-categories">Expr.ps_enum.add_categories</a></li>
+  <li><a href="#expr-ps-enum-move" id="toc-expr-ps-enum-move" class="nav-link" data-scroll-target="#expr-ps-enum-move">Expr.ps_enum.move</a></li>
   <li><a href="#expr-ps-enum-drop-unused" id="toc-expr-ps-enum-drop-unused" class="nav-link" data-scroll-target="#expr-ps-enum-drop-unused">Expr.ps_enum.drop_unused</a></li>
   <li><a href="#expr-ps-enum-missing-to-category" id="toc-expr-ps-enum-missing-to-category" class="nav-link" data-scroll-target="#expr-ps-enum-missing-to-category">Expr.ps_enum.missing_to_category</a></li>
   <li><a href="#expr-ps-enum-category-to-missing" id="toc-expr-ps-enum-category-to-missing" class="nav-link" data-scroll-target="#expr-ps-enum-category-to-missing">Expr.ps_enum.category_to_missing</a></li>
@@ -271,14 +273,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td><a href="#expr-ps-enum-make"><code>Expr.<wbr>ps_enum.<wbr>make</code></a></td>
-<td>Cast a string column to Enum, optionally deriving categories from the data.</td>
+<td>Cast a column to Enum, optionally deriving categories from the data.</td>
 </tr>
 <tr class="even">
 <td><a href="#expr-ps-enum-lump"><code>Expr.<wbr>ps_enum.<wbr>lump</code></a></td>
 <td>Collapse infrequent categories into <code>other_label</code>.</td>
 </tr>
 <tr class="odd">
-<td><a href="#expr-ps-enum-relabel"><code>Expr.<wbr>ps_enum.<wbr>relabel</code></a></td>
+<td><a href="#expr-ps-enum-rename"><code>Expr.<wbr>ps_enum.<wbr>rename</code></a></td>
 <td>Rename categories, leaving any not present in the mapping unchanged.</td>
 </tr>
 <tr class="even">
@@ -298,8 +300,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Set the exact category list. Values not in <code>categories</code> become null.</td>
 </tr>
 <tr class="even">
+<td><a href="#expr-ps-enum-unify"><code>Expr.<wbr>ps_enum.<wbr>unify</code></a></td>
+<td>Give all matched Enum columns the same category set — the union of all their levels.</td>
+</tr>
+<tr class="odd">
 <td><a href="#expr-ps-enum-add-categories"><code>Expr.<wbr>ps_enum.<wbr>add_categories</code></a></td>
 <td>Insert new categories without changing any values.</td>
+</tr>
+<tr class="even">
+<td><a href="#expr-ps-enum-move"><code>Expr.<wbr>ps_enum.<wbr>move</code></a></td>
+<td>Move specified categories to a given position, keeping all others in their relative order.</td>
 </tr>
 <tr class="odd">
 <td><a href="#expr-ps-enum-drop-unused"><code>Expr.<wbr>ps_enum.<wbr>drop_unused</code></a></td>
@@ -399,7 +409,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>*exprs</strong> = <code>()</code></p>
 <p><strong>**named_exprs</strong> = <code>{}</code></p>
 <p><strong>Examples:</strong></p>
-<div id="bcc0a8e2" class="cell" data-execution_count="2">
+<div id="e0b3ce26" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.reorder(by<span class="op">=</span><span class="st">"weight"</span>)</span>
@@ -430,7 +440,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>*exprs</strong> = <code>()</code></p>
 <p><strong>**named_exprs</strong> = <code>{}</code></p>
 <p><strong>Examples:</strong></p>
-<div id="256478e8" class="cell" data-execution_count="3">
+<div id="f7077ef5" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>animals.ps.select(pl.col(<span class="st">"animal"</span>).ps_enum.make(), <span class="st">"weight"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="3">
@@ -456,19 +466,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Apply a custom function with full LazyFrame context.</p>
 <dl>
-<dt><strong>fn</strong> <code>Callable[[pl.LazyFrame, str], pl.Expr]</code></dt>
+<dt><strong>fn</strong> <code>Callable[[pl.LazyFrame, pl.Expr], pl.Expr]</code></dt>
 <dd>
-Called as fn(lf, col_name) → pl.Expr for each matched column.
+Called as fn(lf, col_ref) → pl.Expr for each matched column. col_ref evaluates to the column’s values in lf; it works correctly for any expression shape, including transforms and when/then/otherwise. Use col_ref.meta.output_name() when the string column name is needed.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="9064c374" class="cell" data-execution_count="4">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> center_scale(lf: pl.LazyFrame, col: <span class="bu">str</span>) <span class="op">-&gt;</span> pl.Expr:</span>
+<div id="140a3be5" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> center_scale(lf: pl.LazyFrame, col_ref: pl.Expr) <span class="op">-&gt;</span> pl.Expr:</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    stats <span class="op">=</span> lf.select(</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>        pl.col(col).mean().alias(<span class="st">"m"</span>), pl.col(col).std().alias(<span class="st">"s"</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>        col_ref.mean().alias(<span class="st">"m"</span>), col_ref.std().alias(<span class="st">"s"</span>)</span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    ).collect()</span>
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    m, s <span class="op">=</span> stats[<span class="st">"m"</span>][<span class="dv">0</span>], stats[<span class="st">"s"</span>][<span class="dv">0</span>]</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ((pl.col(col) <span class="op">-</span> m) <span class="op">/</span> s).alias(col)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (col_ref <span class="op">-</span> m) <span class="op">/</span> s</span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>pl.DataFrame({<span class="st">"x"</span>: [<span class="fl">1.0</span>, <span class="fl">2.0</span>, <span class="fl">3.0</span>, <span class="fl">4.0</span>, <span class="fl">5.0</span>]}).ps.with_columns(</span>
 <span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps.<span class="bu">apply</span>(center_scale)</span>
@@ -488,7 +498,7 @@ Called as fn(lf, col_name) → pl.Expr for each matched column.
 └───────────┘</code></pre>
 </div>
 </div>
-<div id="aec745ec" class="cell" data-execution_count="5">
+<div id="b7f8c2cc" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pl.DataFrame({</span>
@@ -496,17 +506,18 @@ Called as fn(lf, col_name) → pl.Expr for each matched column.
 <span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"term"</span>: [<span class="st">"cat"</span>, <span class="st">"dog"</span>, <span class="st">"cat"</span>, <span class="st">"cat"</span>, <span class="st">"bird"</span>],</span>
 <span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>})</span>
 <span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> idf(lf: pl.LazyFrame, col: <span class="bu">str</span>) <span class="op">-&gt;</span> pl.Expr:</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> lf.select(pl.col(<span class="st">"doc_id"</span>).n_unique()).collect().item()</span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    freq <span class="op">=</span> lf.group_by(col).agg(</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">"doc_id"</span>).n_unique().alias(<span class="st">"n"</span>)</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    ).collect()</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    scores <span class="op">=</span> {r[col]: math.log(n <span class="op">/</span> r[<span class="st">"n"</span>]) <span class="cf">for</span> r <span class="kw">in</span> freq.iter_rows(named<span class="op">=</span><span class="va">True</span>)}</span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> pl.col(col).replace_strict(</span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>        <span class="bu">list</span>(scores), <span class="bu">list</span>(scores.values()), return_dtype<span class="op">=</span>pl.Float64</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>df.ps.with_columns(pl.col(<span class="st">"term"</span>).ps.<span class="bu">apply</span>(idf).alias(<span class="st">"idf"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> idf(lf: pl.LazyFrame, col_ref: pl.Expr) <span class="op">-&gt;</span> pl.Expr:</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    col_name <span class="op">=</span> col_ref.meta.output_name()</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> lf.select(pl.col(<span class="st">"doc_id"</span>).n_unique()).collect().item()</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    freq <span class="op">=</span> lf.group_by(col_ref).agg(</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>        pl.col(<span class="st">"doc_id"</span>).n_unique().alias(<span class="st">"n"</span>)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    ).collect()</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    scores <span class="op">=</span> {r[col_name]: math.log(n <span class="op">/</span> r[<span class="st">"n"</span>]) <span class="cf">for</span> r <span class="kw">in</span> freq.iter_rows(named<span class="op">=</span><span class="va">True</span>)}</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> col_ref.replace_strict(</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        <span class="bu">list</span>(scores), <span class="bu">list</span>(scores.values()), return_dtype<span class="op">=</span>pl.Float64</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>df.ps.with_columns(pl.col(<span class="st">"term"</span>).ps.<span class="bu">apply</span>(idf).alias(<span class="st">"idf"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="5">
 <pre><code>shape: (5, 3)
 ┌────────┬──────┬──────────┐
@@ -532,11 +543,12 @@ Called as fn(lf, col_name) → pl.Expr for each matched column.
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    categories<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    make_null<span class="op">=</span>(),</span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Cast a string column to Enum, optionally deriving categories from the data.</p>
+<p>Cast a column to Enum, optionally deriving categories from the data.</p>
+<p>When categories are derived from the data, they are sorted by the column’s native dtype before being cast to string. This means integers sort numerically (1, 2, 10), dates chronologically, and strings alphabetically — rather than all sorting lexicographically.</p>
 <dl>
 <dt><strong>categories</strong> <code>Sequence[str] | None</code></dt>
 <dd>
-Fixed set of allowed values. If omitted, derived from the data as the unique values in alphabetical order.
+Fixed set of allowed values. If omitted, derived from the data as the unique values sorted by native dtype order.
 </dd>
 <dt><strong>make_null</strong> <code>Sequence[str] | str</code> = <code>()</code></dt>
 <dd>
@@ -544,7 +556,7 @@ Values to replace with null before casting.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="f5f0311b" class="cell" data-execution_count="6">
+<div id="4d71d634" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(pl.col(<span class="st">"animal"</span>).ps_enum.make())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="6">
@@ -562,7 +574,7 @@ Values to replace with null before casting.
 └────────┴────────┘</code></pre>
 </div>
 </div>
-<div id="90897220" class="cell" data-execution_count="7">
+<div id="75cad429" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"?"</span>]}).ps.with_columns(</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_enum.make(categories<span class="op">=</span>[<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"z"</span>], make_null<span class="op">=</span><span class="st">"?"</span>)</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>)[<span class="st">'x'</span>].dtype</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -597,7 +609,7 @@ Optional callable that receives the non-null counts DataFrame (columns: category
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="72be320d" class="cell" data-execution_count="8">
+<div id="357f7c8b" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.lump(n<span class="op">=</span><span class="dv">1</span>)</span>
@@ -618,9 +630,9 @@ Optional callable that receives the non-null counts DataFrame (columns: category
 </div>
 </div>
 </section>
-<section id="expr-ps-enum-relabel" class="level3">
-<h3 class="anchored" data-anchor-id="expr-ps-enum-relabel">Expr.ps_enum.relabel</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.relabel(</span>
+<section id="expr-ps-enum-rename" class="level3">
+<h3 class="anchored" data-anchor-id="expr-ps-enum-rename">Expr.ps_enum.rename</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.rename(</span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    mapping,</span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    strict<span class="op">=</span><span class="va">True</span>,</span>
 <span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -637,10 +649,10 @@ If True (default), raise if any dict key is not an existing category.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="c6ee8744" class="cell" data-execution_count="9">
+<div id="a0d2f87b" class="cell" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.relabel({<span class="st">"bird"</span>: <span class="st">"Bird"</span>, <span class="st">"cow"</span>: <span class="st">"Cow"</span>})</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.rename({<span class="st">"bird"</span>: <span class="st">"Bird"</span>, <span class="st">"cow"</span>: <span class="st">"Cow"</span>})</span>
 <span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="9">
 <pre><code>shape: (5, 2)
@@ -657,9 +669,9 @@ If True (default), raise if any dict key is not an existing category.
 └────────┴────────┘</code></pre>
 </div>
 </div>
-<div id="c185b10c" class="cell" data-execution_count="10">
+<div id="cf0cbc9f" class="cell" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.relabel(<span class="bu">str</span>.upper)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.rename(<span class="bu">str</span>.upper)</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="10">
 <pre><code>shape: (5, 2)
@@ -682,7 +694,7 @@ If True (default), raise if any dict key is not an existing category.
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.rev()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Reverse the order of categories.</p>
 <p><strong>Examples:</strong></p>
-<div id="8defd454" class="cell" data-execution_count="11">
+<div id="4408585a" class="cell" data-execution_count="11">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.rev()</span>
@@ -706,7 +718,7 @@ If True, least frequent first instead.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="205f1a2f" class="cell" data-execution_count="12">
+<div id="143ba3af" class="cell" data-execution_count="12">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.infreq()</span>
@@ -750,7 +762,7 @@ How to handle categories whose aggregate is null — ‘drop’ excludes them, �
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="1536d486" class="cell" data-execution_count="13">
+<div id="d8ae76de" class="cell" data-execution_count="13">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.reorder(<span class="st">"weight"</span>, agg<span class="op">=</span>pl.Expr.mean)</span>
@@ -773,7 +785,7 @@ The new ordered category list.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="eab9919a" class="cell" data-execution_count="14">
+<div id="bc9d9d22" class="cell" data-execution_count="14">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.set_categories([<span class="st">"cow"</span>, <span class="st">"dog"</span>])</span>
@@ -794,54 +806,97 @@ The new ordered category list.
 </div>
 </div>
 </section>
+<section id="expr-ps-enum-unify" class="level3">
+<h3 class="anchored" data-anchor-id="expr-ps-enum-unify">Expr.ps_enum.unify</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.unify()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Give all matched Enum columns the same category set — the union of all their levels.</p>
+<p>Categories are ordered by first appearance across columns (left to right). Values are never changed; only the dtype gains the extra categories.</p>
+<p>Requires all matched columns to already be Enum. Call <code>.ps_enum.make()</code> first if needed.</p>
+<p><strong>Examples:</strong></p>
+<div id="8d05b640" class="cell" data-execution_count="15">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pl.DataFrame({</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">'x'</span>: pl.Series([<span class="st">'a'</span>, <span class="st">'b'</span>], dtype<span class="op">=</span>pl.Enum([<span class="st">'a'</span>, <span class="st">'b'</span>])),</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">'y'</span>: pl.Series([<span class="st">'b'</span>, <span class="st">'c'</span>], dtype<span class="op">=</span>pl.Enum([<span class="st">'b'</span>, <span class="st">'c'</span>])),</span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>df.ps.with_columns(pl.col(<span class="st">'x'</span>, <span class="st">'y'</span>).ps_enum.unify())[<span class="st">'x'</span>].dtype</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<pre><code>Enum(categories=['a', 'b', 'c'])</code></pre>
+</div>
+</div>
+</section>
 <section id="expr-ps-enum-add-categories" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-enum-add-categories">Expr.ps_enum.add_categories</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.add_categories(</span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>    categories,</span>
-<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>    after<span class="op">=</span><span class="bu">float</span>(<span class="st">'inf'</span>),</span>
-<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.add_categories(</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>    categories,</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>    before<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Insert new categories without changing any values.</p>
 <dl>
 <dt><strong>categories</strong> <code>Sequence[str]</code></dt>
 <dd>
 New category labels to add.
 </dd>
-<dt><strong>after</strong> <code>int | float</code> = <code>float('inf')</code></dt>
+<dt><strong>before</strong> <code>int | None</code></dt>
 <dd>
-Insert after this 0-based index. Defaults to appending at the end.
+Insert before this 0-based index of the existing categories. <code>None</code> (default) appends at the end. Negative indices count from the end. Any value ≥ len(categories) is equivalent to <code>None</code> (end).
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="dfac5366" class="cell" data-execution_count="15">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
-<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.add_categories([<span class="st">"rabbit"</span>], after<span class="op">=</span><span class="dv">1</span>)</span>
-<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>)[<span class="st">"animal"</span>].dtype</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="15">
-<pre><code>Enum(categories=['bird', 'cow', 'rabbit', 'dog'])</code></pre>
+<div id="f34d3f8b" class="cell" data-execution_count="16">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.add_categories([<span class="st">"rabbit"</span>], before<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>)[<span class="st">"animal"</span>].dtype</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="16">
+<pre><code>Enum(categories=['bird', 'rabbit', 'cow', 'dog'])</code></pre>
+</div>
+</div>
+</section>
+<section id="expr-ps-enum-move" class="level3">
+<h3 class="anchored" data-anchor-id="expr-ps-enum-move">Expr.ps_enum.move</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.move(</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>levels,</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>    before<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Move specified categories to a given position, keeping all others in their relative order.</p>
+<p><strong>*levels</strong> <code>str</code> = <code>()</code></p>
+<dl>
+<dt><strong>before</strong> <code>int | None</code> = <code>0</code></dt>
+<dd>
+Insert before this 0-based index of the remaining categories. <code>0</code> (default) moves to the front. <code>None</code> appends at the end. Negative indices count from the end of the remaining categories. Any value ≥ len(remaining) is equivalent to <code>None</code> (end).
+</dd>
+</dl>
+<p><strong>Examples:</strong></p>
+<div id="7a883c67" class="cell" data-execution_count="17">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.move(<span class="st">"dog"</span>)</span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>)[<span class="st">"animal"</span>].dtype</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="17">
+<pre><code>Enum(categories=['dog', 'bird', 'cow'])</code></pre>
 </div>
 </div>
 </section>
 <section id="expr-ps-enum-drop-unused" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-enum-drop-unused">Expr.ps_enum.drop_unused</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.drop_unused()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.drop_unused()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Remove categories that don’t appear in the data, preserving order.</p>
 <p><strong>Examples:</strong></p>
-<div id="06be5580" class="cell" data-execution_count="16">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pl.DataFrame(</span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">'x'</span>: pl.Series(<span class="st">'x'</span>, [<span class="st">'bird'</span>, <span class="st">'bird'</span>], dtype<span class="op">=</span>pl.Enum([<span class="st">'fish'</span>, <span class="st">'bird'</span>, <span class="st">'cat'</span>]))}</span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>df.ps.with_columns(pl.col(<span class="st">"x"</span>).ps_enum.drop_unused())[<span class="st">"x"</span>].dtype</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="16">
+<div id="473d3ef8" class="cell" data-execution_count="18">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pl.DataFrame(</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">'x'</span>: pl.Series(<span class="st">'x'</span>, [<span class="st">'bird'</span>, <span class="st">'bird'</span>], dtype<span class="op">=</span>pl.Enum([<span class="st">'fish'</span>, <span class="st">'bird'</span>, <span class="st">'cat'</span>]))}</span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>df.ps.with_columns(pl.col(<span class="st">"x"</span>).ps_enum.drop_unused())[<span class="st">"x"</span>].dtype</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="18">
 <pre><code>Enum(categories=['bird'])</code></pre>
 </div>
 </div>
 </section>
 <section id="expr-ps-enum-missing-to-category" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-enum-missing-to-category">Expr.ps_enum.missing_to_category</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.missing_to_category(</span>
-<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>    name,</span>
-<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.missing_to_category(</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>    name,</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert null values into a new category <code>name</code>, appended at the end.</p>
 <p>If <code>name</code> is already a category, null values are mapped to the existing category without modifying the category list.</p>
 <dl>
@@ -851,12 +906,12 @@ Label for the category to assign to null values.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="bb0147c3" class="cell" data-execution_count="17">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
-<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
-<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>    new_animals <span class="op">=</span> pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.missing_to_category(<span class="st">"unknown"</span>)</span>
-<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="17">
+<div id="d00bfdb3" class="cell" data-execution_count="19">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>    new_animals <span class="op">=</span> pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.missing_to_category(<span class="st">"unknown"</span>)</span>
+<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="19">
 <pre><code>shape: (5, 3)
 ┌────────┬────────┬─────────────┐
 │ animal ┆ weight ┆ new_animals │
@@ -874,9 +929,9 @@ Label for the category to assign to null values.
 </section>
 <section id="expr-ps-enum-category-to-missing" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-enum-category-to-missing">Expr.ps_enum.category_to_missing</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.category_to_missing(</span>
-<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>    name,</span>
-<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.category_to_missing(</span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>    name,</span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert all occurrences of one or more categories to null and remove them from the Enum.</p>
 <dl>
 <dt><strong>name</strong> <code>str | Sequence[str]</code></dt>
@@ -885,12 +940,12 @@ Category name(s) to nullify. Raises if any are not current categories.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="251e6b45" class="cell" data-execution_count="18">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
-<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
-<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>    new_animals <span class="op">=</span>  pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.category_to_missing(<span class="st">"bird"</span>)</span>
-<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="18">
+<div id="f922a33f" class="cell" data-execution_count="20">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
+<span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>    new_animals <span class="op">=</span>  pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.category_to_missing(<span class="st">"bird"</span>)</span>
+<span id="cb53-4"><a href="#cb53-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="20">
 <pre><code>shape: (5, 3)
 ┌────────┬────────┬─────────────┐
 │ animal ┆ weight ┆ new_animals │
@@ -911,14 +966,14 @@ Category name(s) to nullify. Raises if any are not current categories.
 <h2 class="doc-details anchored" data-anchor-id="ps_chop-binning-helpers-1">ps_chop — Binning helpers</h2>
 <section id="expr-ps-chop-chop" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-chop-chop">Expr.ps_chop.chop</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.chop(</span>
-<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>    breaks,</span>
-<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb49-4"><a href="#cb49-4" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb49-5"><a href="#cb49-5" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb49-6"><a href="#cb49-6" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb49-7"><a href="#cb49-7" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb49-8"><a href="#cb49-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.chop(</span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>    breaks,</span>
+<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb55-8"><a href="#cb55-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Cut into intervals at explicit breakpoints.</p>
 <p>Returns an Enum-typed column whose category names are the bin labels. Integer columns use fully-closed <code>[a, b]</code> notation; single-element bins are written as <code>{x}</code>.</p>
 <dl>
@@ -948,12 +1003,12 @@ If True, return a struct {lo, hi} instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="9aab6f43" class="cell" data-execution_count="19">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
-<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(</span>
-<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"score"</span>).ps_chop.chop([<span class="dv">40</span>, <span class="dv">70</span>], fmt<span class="op">=</span><span class="st">".0f"</span>).alias(<span class="st">"grade"</span>)</span>
-<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="19">
+<div id="ddac301d" class="cell" data-execution_count="21">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(</span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"score"</span>).ps_chop.chop([<span class="dv">40</span>, <span class="dv">70</span>], fmt<span class="op">=</span><span class="st">".0f"</span>).alias(<span class="st">"grade"</span>)</span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="21">
 <pre><code>shape: (7, 2)
 ┌───────┬──────────┐
 │ score ┆ grade    │
@@ -973,15 +1028,15 @@ If True, return a struct {lo, hi} instead of just the label.
 </section>
 <section id="expr-ps-chop-width" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-chop-width">Expr.ps_chop.width</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.width(</span>
-<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>    size,</span>
-<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>    start<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb52-5"><a href="#cb52-5" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb52-6"><a href="#cb52-6" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb52-7"><a href="#cb52-7" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb52-8"><a href="#cb52-8" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb52-9"><a href="#cb52-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb58"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.width(</span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>    size,</span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>    start<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb58-7"><a href="#cb58-7" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb58-8"><a href="#cb58-8" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb58-9"><a href="#cb58-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Chop into equal-width bins of given size.</p>
 <p>Returns an Enum-typed column whose category names are the bin labels.</p>
 <dl>
@@ -1015,10 +1070,10 @@ If True, return a struct instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="c6cce5ea" class="cell" data-execution_count="20">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
-<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(pl.col(<span class="st">"score"</span>).ps_chop.width(<span class="dv">25</span>).alias(<span class="st">"band"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="20">
+<div id="8395f060" class="cell" data-execution_count="22">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
+<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(pl.col(<span class="st">"score"</span>).ps_chop.width(<span class="dv">25</span>).alias(<span class="st">"band"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="22">
 <pre><code>shape: (7, 2)
 ┌───────┬──────────┐
 │ score ┆ band     │
@@ -1038,15 +1093,15 @@ If True, return a struct instead of just the label.
 </section>
 <section id="expr-ps-chop-n-elements" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-chop-n-elements">Expr.ps_chop.n_elements</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb55"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.n_elements(</span>
-<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a>    n,</span>
-<span id="cb55-3"><a href="#cb55-3" aria-hidden="true" tabindex="-1"></a>    tail<span class="op">=</span><span class="st">'split'</span>,</span>
-<span id="cb55-4"><a href="#cb55-4" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb55-5"><a href="#cb55-5" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb55-6"><a href="#cb55-6" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="st">'g'</span>,</span>
-<span id="cb55-7"><a href="#cb55-7" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb55-8"><a href="#cb55-8" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb55-9"><a href="#cb55-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb61"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.n_elements(</span>
+<span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>    n,</span>
+<span id="cb61-3"><a href="#cb61-3" aria-hidden="true" tabindex="-1"></a>    tail<span class="op">=</span><span class="st">'split'</span>,</span>
+<span id="cb61-4"><a href="#cb61-4" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb61-5"><a href="#cb61-5" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb61-6"><a href="#cb61-6" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="st">'g'</span>,</span>
+<span id="cb61-7"><a href="#cb61-7" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb61-8"><a href="#cb61-8" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb61-9"><a href="#cb61-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Chop into groups of n observations each.</p>
 <p>Returns an Enum-typed column whose category names are the bin labels. Boundaries are drawn after every nth element (sorted order). Ties are never split — the boundary advances to the next distinct value if needed.</p>
 <dl>
@@ -1080,10 +1135,10 @@ If True, return a struct instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="e8ccdf24" class="cell" data-execution_count="21">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
-<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(pl.col(<span class="st">"score"</span>).ps_chop.n_elements(<span class="dv">3</span>).alias(<span class="st">"tercile"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="21">
+<div id="5553641d" class="cell" data-execution_count="23">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(pl.col(<span class="st">"score"</span>).ps_chop.n_elements(<span class="dv">3</span>).alias(<span class="st">"tercile"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="23">
 <pre><code>shape: (7, 2)
 ┌───────┬──────────┐
 │ score ┆ tercile  │
@@ -1103,15 +1158,15 @@ If True, return a struct instead of just the label.
 </section>
 <section id="expr-ps-chop-n-groups" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-chop-n-groups">Expr.ps_chop.n_groups</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb58"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.n_groups(</span>
-<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>    k,</span>
-<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a>    raw<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb58-7"><a href="#cb58-7" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb58-8"><a href="#cb58-8" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb58-9"><a href="#cb58-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.n_groups(</span>
+<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a>    k,</span>
+<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb64-4"><a href="#cb64-4" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb64-5"><a href="#cb64-5" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb64-6"><a href="#cb64-6" aria-hidden="true" tabindex="-1"></a>    raw<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb64-7"><a href="#cb64-7" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb64-8"><a href="#cb64-8" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb64-9"><a href="#cb64-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Chop into k equal-count groups (by quantile boundaries).</p>
 <p>Returns an Enum-typed column whose category names are the bin labels.</p>
 <dl>
@@ -1145,10 +1200,10 @@ If True, return a struct instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="a018dcbc" class="cell" data-execution_count="22">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
-<span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(pl.col(<span class="st">"score"</span>).ps_chop.n_groups(<span class="dv">3</span>).alias(<span class="st">"tertile"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="22">
+<div id="8c541f94" class="cell" data-execution_count="24">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(pl.col(<span class="st">"score"</span>).ps_chop.n_groups(<span class="dv">3</span>).alias(<span class="st">"tertile"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="24">
 <pre><code>shape: (7, 2)
 ┌───────┬──────────┐
 │ score ┆ tertile  │
@@ -1168,15 +1223,15 @@ If True, return a struct instead of just the label.
 </section>
 <section id="expr-ps-chop-quantiles" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-chop-quantiles">Expr.ps_chop.quantiles</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb61"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.quantiles(</span>
-<span id="cb61-2"><a href="#cb61-2" aria-hidden="true" tabindex="-1"></a>    probs,</span>
-<span id="cb61-3"><a href="#cb61-3" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb61-4"><a href="#cb61-4" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb61-5"><a href="#cb61-5" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb61-6"><a href="#cb61-6" aria-hidden="true" tabindex="-1"></a>    raw<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb61-7"><a href="#cb61-7" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb61-8"><a href="#cb61-8" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb61-9"><a href="#cb61-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_chop.quantiles(</span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>    probs,</span>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a>    left_closed<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb67-5"><a href="#cb67-5" aria-hidden="true" tabindex="-1"></a>    fmt<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb67-6"><a href="#cb67-6" aria-hidden="true" tabindex="-1"></a>    raw<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb67-7"><a href="#cb67-7" aria-hidden="true" tabindex="-1"></a>    extend<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb67-8"><a href="#cb67-8" aria-hidden="true" tabindex="-1"></a>    return_struct<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb67-9"><a href="#cb67-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Chop at quantile boundaries.</p>
 <p>Returns an Enum-typed column whose category names are the bin labels.</p>
 <dl>
@@ -1210,12 +1265,12 @@ If True, return a struct instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="180cbb02" class="cell" data-execution_count="23">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
-<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(</span>
-<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"score"</span>).ps_chop.quantiles([<span class="fl">0.25</span>, <span class="fl">0.75</span>]).alias(<span class="st">"iqr_group"</span>)</span>
-<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="23">
+<div id="45b6d0bc" class="cell" data-execution_count="25">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
+<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(</span>
+<span id="cb68-3"><a href="#cb68-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"score"</span>).ps_chop.quantiles([<span class="fl">0.25</span>, <span class="fl">0.75</span>]).alias(<span class="st">"iqr_group"</span>)</span>
+<span id="cb68-4"><a href="#cb68-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="25">
 <pre><code>shape: (7, 2)
 ┌───────┬─────────────┐
 │ score ┆ iqr_group   │
@@ -1238,18 +1293,18 @@ If True, return a struct instead of just the label.
 <h2 class="doc-details anchored" data-anchor-id="ps_str-string-column-helpers-1">ps_str — String column helpers</h2>
 <section id="expr-ps-str-count" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-str-count">Expr.ps_str.count</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb64"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_str.count(</span>
-<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a>    pattern<span class="op">=</span><span class="st">''</span>,</span>
-<span id="cb64-3"><a href="#cb64-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb70"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_str.count(</span>
+<span id="cb70-2"><a href="#cb70-2" aria-hidden="true" tabindex="-1"></a>    pattern<span class="op">=</span><span class="st">''</span>,</span>
+<span id="cb70-3"><a href="#cb70-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Count non-overlapping regex matches in each string.</p>
 <p>Deprecated: thin wrapper around <code>pl.Expr.str.count_matches</code>; likely to be removed.</p>
 <p><strong>pattern</strong> = <code>''</code></p>
 <p><strong>Examples:</strong></p>
-<div id="9b555fc4" class="cell" data-execution_count="24">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"hello world"</span>, <span class="st">"foo bar baz"</span>, <span class="st">""</span>]}).select(</span>
-<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_str.count(<span class="vs">r"</span><span class="dv">\b\w</span><span class="op">+</span><span class="dv">\b</span><span class="vs">"</span>).alias(<span class="st">"word_count"</span>)</span>
-<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="24">
+<div id="0cc42338" class="cell" data-execution_count="26">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a>pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"hello world"</span>, <span class="st">"foo bar baz"</span>, <span class="st">""</span>]}).select(</span>
+<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_str.count(<span class="vs">r"</span><span class="dv">\b\w</span><span class="op">+</span><span class="dv">\b</span><span class="vs">"</span>).alias(<span class="st">"word_count"</span>)</span>
+<span id="cb71-3"><a href="#cb71-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="26">
 <pre><code>shape: (3, 1)
 ┌────────────┐
 │ word_count │
@@ -1265,13 +1320,13 @@ If True, return a struct instead of just the label.
 </section>
 <section id="expr-ps-str-wrap" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-str-wrap">Expr.ps_str.wrap</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_str.wrap(</span>
-<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="dv">80</span>,</span>
-<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>    initial_indent<span class="op">=</span><span class="dv">0</span>,</span>
-<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a>    subsequent_indent<span class="op">=</span><span class="dv">0</span>,</span>
-<span id="cb67-5"><a href="#cb67-5" aria-hidden="true" tabindex="-1"></a>    break_on_hyphens<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb67-6"><a href="#cb67-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">**</span>kwargs,</span>
-<span id="cb67-7"><a href="#cb67-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb73"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_str.wrap(</span>
+<span id="cb73-2"><a href="#cb73-2" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="dv">80</span>,</span>
+<span id="cb73-3"><a href="#cb73-3" aria-hidden="true" tabindex="-1"></a>    initial_indent<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb73-4"><a href="#cb73-4" aria-hidden="true" tabindex="-1"></a>    subsequent_indent<span class="op">=</span><span class="dv">0</span>,</span>
+<span id="cb73-5"><a href="#cb73-5" aria-hidden="true" tabindex="-1"></a>    break_on_hyphens<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb73-6"><a href="#cb73-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">**</span>kwargs,</span>
+<span id="cb73-7"><a href="#cb73-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Wrap each string to at most <code>width</code> characters per line.</p>
 <dl>
 <dt><strong>width</strong> <code>int</code> = <code>80</code></dt>
@@ -1293,23 +1348,23 @@ Allow breaks at hyphens in compound words.
 </dl>
 <p><strong>**kwargs</strong> = <code>{}</code></p>
 <p><strong>Examples:</strong></p>
-<div id="d959950b" class="cell" data-execution_count="25">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a>text <span class="op">=</span> pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"A long sentence that exceeds the column width."</span>]}).select(</span>
-<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_str.wrap(width<span class="op">=</span><span class="dv">25</span>)</span>
-<span id="cb68-3"><a href="#cb68-3" aria-hidden="true" tabindex="-1"></a>)[<span class="st">'x'</span>].to_list()</span>
-<span id="cb68-4"><a href="#cb68-4" aria-hidden="true" tabindex="-1"></a>text</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="25">
+<div id="7afe2cd0" class="cell" data-execution_count="27">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a>text <span class="op">=</span> pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"A long sentence that exceeds the column width."</span>]}).select(</span>
+<span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_str.wrap(width<span class="op">=</span><span class="dv">25</span>)</span>
+<span id="cb74-3"><a href="#cb74-3" aria-hidden="true" tabindex="-1"></a>)[<span class="st">'x'</span>].to_list()</span>
+<span id="cb74-4"><a href="#cb74-4" aria-hidden="true" tabindex="-1"></a>text</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="27">
 <pre><code>['A long sentence that\nexceeds the column width.']</code></pre>
 </div>
 </div>
 </section>
 <section id="expr-ps-str-trunc" class="level3">
 <h3 class="anchored" data-anchor-id="expr-ps-str-trunc">Expr.ps_str.trunc</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb70"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb70-1"><a href="#cb70-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_str.trunc(</span>
-<span id="cb70-2"><a href="#cb70-2" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="dv">5</span>,</span>
-<span id="cb70-3"><a href="#cb70-3" aria-hidden="true" tabindex="-1"></a>    side<span class="op">=</span><span class="st">'right'</span>,</span>
-<span id="cb70-4"><a href="#cb70-4" aria-hidden="true" tabindex="-1"></a>    placeholder<span class="op">=</span><span class="st">'…'</span>,</span>
-<span id="cb70-5"><a href="#cb70-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb76"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb76-1"><a href="#cb76-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_str.trunc(</span>
+<span id="cb76-2"><a href="#cb76-2" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="dv">5</span>,</span>
+<span id="cb76-3"><a href="#cb76-3" aria-hidden="true" tabindex="-1"></a>    side<span class="op">=</span><span class="st">'right'</span>,</span>
+<span id="cb76-4"><a href="#cb76-4" aria-hidden="true" tabindex="-1"></a>    placeholder<span class="op">=</span><span class="st">'…'</span>,</span>
+<span id="cb76-5"><a href="#cb76-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Truncate each string to fit within <code>width</code> characters.</p>
 <p>Collapses whitespace and appends <code>placeholder</code> when the text is cut.</p>
 <dl>
@@ -1327,11 +1382,11 @@ String inserted where the text is cut.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="0b68896a" class="cell" data-execution_count="26">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a>pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"short"</span>, <span class="st">"a much longer string"</span>]}).select(</span>
-<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_str.trunc(width<span class="op">=</span><span class="dv">10</span>)</span>
-<span id="cb71-3"><a href="#cb71-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-display" data-execution_count="26">
+<div id="4be3d5f8" class="cell" data-execution_count="28">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb77"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a>pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"short"</span>, <span class="st">"a much longer string"</span>]}).select(</span>
+<span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_str.trunc(width<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb77-3"><a href="#cb77-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="28">
 <pre><code>shape: (2, 1)
 ┌────────────┐
 │ x          │
@@ -1349,10 +1404,10 @@ String inserted where the text is cut.
 <h2 class="doc-details anchored" data-anchor-id="internals-1">Internals</h2>
 <section id="frameexpr" class="level3">
 <h3 class="anchored" data-anchor-id="frameexpr">FrameExpr</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb73"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a>FrameExpr(</span>
-<span id="cb73-2"><a href="#cb73-2" aria-hidden="true" tabindex="-1"></a>    col_expr,</span>
-<span id="cb73-3"><a href="#cb73-3" aria-hidden="true" tabindex="-1"></a>    resolver,</span>
-<span id="cb73-4"><a href="#cb73-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb79"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a>FrameExpr(</span>
+<span id="cb79-2"><a href="#cb79-2" aria-hidden="true" tabindex="-1"></a>    col_expr,</span>
+<span id="cb79-3"><a href="#cb79-3" aria-hidden="true" tabindex="-1"></a>    resolver,</span>
+<span id="cb79-4"><a href="#cb79-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>An expression that requires a LazyFrame context to resolve into a list of pl.Expr.</p>
 <p>A plain <code>pl.Expr</code> is insufficient for operations like <code>ps_enum.make()</code> or <code>ps_chop.chop()</code> because Polars needs to know the output dtype (e.g.&nbsp;the exact <code>pl.Enum([...])</code> category list) at plan-construction time — before any data is seen. <code>FrameExpr</code> defers that resolution to a two-phase execution model:</p>
 <p><strong>Phase 1 — peek</strong> <code>ps.with_columns</code> calls <code>resolve(lf)</code> with the <em>current</em> <code>LazyFrame</code>. The resolver runs a small aggregation (e.g.&nbsp;<code>unique().sort()</code> for category discovery, a handful of quantiles for binning) and collects it. Because the resolver receives the full lazy plan up to that point, any preceding <code>.filter()</code> or <code>.select()</code> calls are already embedded and Polars’ predicate/projection pushdown applies — only the relevant rows and columns are scanned.</p>
