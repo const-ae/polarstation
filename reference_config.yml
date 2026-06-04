@@ -39,6 +39,8 @@ sections:
         path: enum_extensions.PolarstationEnumExpression.reorder
       - display: Expr.ps_enum.set_categories
         path: enum_extensions.PolarstationEnumExpression.set_categories
+      - display: Expr.ps_enum.unify
+        path: enum_extensions.PolarstationEnumExpression.unify
       - display: Expr.ps_enum.add_categories
         path: enum_extensions.PolarstationEnumExpression.add_categories
       - display: Expr.ps_enum.move

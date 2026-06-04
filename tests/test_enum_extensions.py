@@ -62,6 +62,59 @@ def test_make_date_sorts_chronologically():
     assert r["x"].dtype.categories.to_list() == ["2019-06-01", "2020-01-01", "2021-03-15"]
 
 
+# ── unify ─────────────────────────────────────────────────────────────────────
+
+
+def test_unify_basic():
+    df = pl.DataFrame({
+        "x": pl.Series(["a", "b"], dtype=pl.Enum(["a", "b"])),
+        "y": pl.Series(["b", "c"], dtype=pl.Enum(["b", "c"])),
+    })
+    r = df.ps.with_columns(pl.col("x", "y").ps_enum.unify())
+    assert r["x"].dtype == pl.Enum(["a", "b", "c"])
+    assert r["y"].dtype == pl.Enum(["a", "b", "c"])
+
+
+def test_unify_preserves_values():
+    df = pl.DataFrame({
+        "x": pl.Series(["a", "b"], dtype=pl.Enum(["a", "b"])),
+        "y": pl.Series(["b", "c"], dtype=pl.Enum(["b", "c"])),
+    })
+    r = df.ps.with_columns(pl.col("x", "y").ps_enum.unify())
+    assert r["x"].to_list() == ["a", "b"]
+    assert r["y"].to_list() == ["b", "c"]
+
+
+def test_unify_first_seen_ordering():
+    df = pl.DataFrame({
+        "x": pl.Series(["a"], dtype=pl.Enum(["c", "a"])),
+        "y": pl.Series(["b"], dtype=pl.Enum(["b", "a"])),
+    })
+    r = df.ps.with_columns(pl.col("x", "y").ps_enum.unify())
+    assert r["x"].dtype.categories.to_list() == ["c", "a", "b"]
+
+
+def test_unify_already_same():
+    df = pl.DataFrame({
+        "x": pl.Series(["a"], dtype=pl.Enum(["a", "b"])),
+        "y": pl.Series(["b"], dtype=pl.Enum(["a", "b"])),
+    })
+    r = df.ps.with_columns(pl.col("x", "y").ps_enum.unify())
+    assert r["x"].dtype == r["y"].dtype == pl.Enum(["a", "b"])
+
+
+def test_unify_single_column_unchanged():
+    df = pl.DataFrame({"x": pl.Series(["a", "b"], dtype=pl.Enum(["a", "b"]))})
+    r = df.ps.with_columns(pl.col("x").ps_enum.unify())
+    assert r["x"].dtype == pl.Enum(["a", "b"])
+
+
+def test_unify_requires_enum():
+    df = pl.DataFrame({"x": ["a", "b"]})
+    with pytest.raises(TypeError):
+        df.ps.with_columns(pl.col("x").ps_enum.unify())
+
+
 # ── set_categories / drop_unused / add_categories ────────────────────────────
 
 

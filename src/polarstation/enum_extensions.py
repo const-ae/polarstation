@@ -310,6 +310,41 @@ class PolarstationEnumExpression:
       resolve_across_columns(self._expr, _set_categories_impl, new_cats=list(categories)),
     )
 
+  def unify(self) -> FrameExpr:
+    """Give all matched Enum columns the same category set — the union of all their levels.
+
+    Categories are ordered by first appearance across columns (left to right). Values are
+    never changed; only the dtype gains the extra categories.
+
+    Requires all matched columns to already be Enum. Call ``.ps_enum.make()`` first if needed.
+
+    Examples:
+      df = pl.DataFrame({
+          'x': pl.Series(['a', 'b'], dtype=pl.Enum(['a', 'b'])),
+          'y': pl.Series(['b', 'c'], dtype=pl.Enum(['b', 'c'])),
+      })
+      df.ps.with_columns(pl.col('x', 'y').ps_enum.unify())['x'].dtype
+    """
+    expr = self._expr
+
+    def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+      col_schema = lf.select(expr).collect_schema()
+      seen: set[str] = set()
+      union: list[str] = []
+      for col_name in col_schema.names():
+        dtype = col_schema[col_name]
+        _require_enum(col_name, dtype)
+        for c in dtype.categories.to_list():
+          if c not in seen:
+            seen.add(c)
+            union.append(c)
+      return [
+        pl.struct(expr).struct.field(col_name).cast(pl.Enum(union)).alias(col_name)
+        for col_name in col_schema.names()
+      ]
+
+    return FrameExpr(expr, resolver)
+
   def drop_unused(self) -> FrameExpr:
     """Remove categories that don't appear in the data, preserving order.
 
