@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 import polars as pl
 
+from polarstation.enum_extensions import _enum_to_level, _get_cats
 from polarstation.frame_expr import FrameExpr, resolve_across_columns
 
 # ── dtype helpers ─────────────────────────────────────────────────────────────
@@ -197,12 +198,6 @@ def _make_int_labels(
 # ── string/enum helpers ───────────────────────────────────────────────────────
 
 
-def _get_categories(lf: pl.LazyFrame, col_ref: pl.Expr, name: str, dtype: pl.DataType) -> list[str]:
-  """Ordered category list: Enum uses its defined order; String/Categorical sort alphabetically."""
-  if isinstance(dtype, pl.Enum):
-    return dtype.categories.to_list()
-  return lf.select(col_ref.drop_nulls().unique().sort()).collect()[name].to_list()
-
 
 def _make_enum_labels(
   breaks_phys: list[int],
@@ -251,14 +246,12 @@ def _cut_enum_expr(
   # Cast to Enum explicitly so .to_physical() returns reliable 0-based indices
   # on all Polars versions (pre-1.40 .cut() returns unordered Categorical).
   cat_expr = (
-    col_ref
-    .cast(enum_dtype)
-    .to_physical()
+    _enum_to_level(col_ref.cast(enum_dtype))
     .cut([float(b) for b in breaks_phys], labels=labels, left_closed=left_closed)
     .cast(pl.Enum(labels))
   )
   if return_struct:
-    idx = cat_expr.to_physical()
+    idx = _enum_to_level(cat_expr)
     n_bins = len(breaks_phys) + 1
     lo_cats: list[str] = []
     hi_cats: list[str] = []
@@ -346,7 +339,7 @@ def _cut_expr(
   # which makes .to_physical() unreliable and breaks return_struct indexing.
   cat_expr = col_ref.cut(breaks, labels=labs, left_closed=left_closed).cast(enum_dtype)
   if return_struct:
-    idx = cat_expr.to_physical()
+    idx = _enum_to_level(cat_expr)
     if discrete:
       lo_vals: list[float] = []
       hi_vals: list[float] = []
@@ -391,7 +384,7 @@ def _cut_physical_representation_expr(
     .cast(pl.Enum(labels))
   )
   if return_struct:
-    idx = cat_expr.to_physical()
+    idx = _enum_to_level(cat_expr)
     lo_series = pl.Series(bounds_phys[:-1], dtype=pl.Int64).cast(dtype)
     hi_series = pl.Series(bounds_phys[1:], dtype=pl.Int64).cast(dtype)
     return pl.struct(
@@ -610,7 +603,7 @@ def _chop_categorical(
       return _enum_null_result(labels, return_struct)
     categories = sorted(set(observed) | set(breaks))
   breaks_phys = sorted(categories.index(b) for b in breaks)
-  phys_expr = col_ref.cast(pl.Enum(categories)).to_physical()
+  phys_expr = _enum_to_level(col_ref.cast(pl.Enum(categories)))
   mn_p, mx_p = _min_max(lf, phys_expr)
   if mn_p is None or mx_p is None:
     return _enum_null_result(labels, return_struct)
@@ -713,10 +706,10 @@ def _width_categorical(
       f"Column '{name}' has categorical dtype {dtype}; "
       f"'size' must be an int (number of categories), got {type(size).__name__}"
     )
-  categories = _get_categories(lf, col_ref, name, dtype)
+  categories = _get_cats(lf, col_ref, name, dtype)
   if not categories:
     return _enum_null_result(labels, return_struct)
-  phys_expr = col_ref.cast(pl.Enum(categories)).to_physical()
+  phys_expr = _enum_to_level(col_ref.cast(pl.Enum(categories)))
   mn_p, mx_p = _min_max(lf, phys_expr)
   if mn_p is None or mx_p is None:
     return _enum_null_result(labels, return_struct)
@@ -832,9 +825,9 @@ def _n_elements_categorical(
   return_struct: bool,
 ) -> pl.Expr:
   del fmt
-  categories = _get_categories(lf, col_ref, name, dtype)
+  categories = _get_cats(lf, col_ref, name, dtype)
   xs_phys = (
-    lf.select(col_ref.cast(pl.Enum(categories)).to_physical().drop_nulls().sort())
+    lf.select(_enum_to_level(col_ref.cast(pl.Enum(categories))).drop_nulls().sort())
     .collect()[name]
     .to_list()
   )
@@ -920,10 +913,10 @@ def _quantiles_categorical(
   return_struct: bool,
 ) -> pl.Expr:
   del raw
-  categories = _get_categories(lf, col_ref, name, dtype)
+  categories = _get_cats(lf, col_ref, name, dtype)
   if not categories:
     return _enum_null_result(labels, return_struct)
-  phys_expr = col_ref.cast(pl.Enum(categories)).to_physical()
+  phys_expr = _enum_to_level(col_ref.cast(pl.Enum(categories)))
   breaks_phys, mn_p, mx_p = _quantile_breaks_physical_representation(lf, probs, phys_expr)
   if mn_p is None or mx_p is None:
     return _enum_null_result(labels, return_struct)

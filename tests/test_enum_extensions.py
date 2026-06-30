@@ -62,6 +62,44 @@ def test_make_date_sorts_chronologically():
     assert r["x"].dtype.categories.to_list() == ["2019-06-01", "2020-01-01", "2021-03-15"]
 
 
+# ── to_level ──────────────────────────────────────────────────────────────────
+
+
+def test_to_level_enum():
+    df = pl.DataFrame({"x": pl.Series(["a", "c", "b", None], dtype=pl.Enum(["a", "b", "c"]))})
+    r = df.ps.with_columns(pl.col("x").ps_enum.to_level())
+    assert r["x"].dtype == pl.UInt32
+    assert r["x"].to_list() == [0, 2, 1, None]
+
+
+def test_to_level_string():
+    df = pl.DataFrame({"x": ["b", "a", "c", None]})
+    r = df.ps.with_columns(pl.col("x").ps_enum.to_level())
+    assert r["x"].dtype == pl.UInt32
+    assert r["x"].to_list() == [1, 0, 2, None]
+
+
+def test_to_level_categorical():
+    df = pl.DataFrame({"x": pl.Series(["b", "a", "c"], dtype=pl.Categorical)})
+    r = df.ps.with_columns(pl.col("x").ps_enum.to_level())
+    assert r["x"].dtype == pl.UInt32
+    assert r["x"].to_list() == [1, 0, 2]
+
+
+def test_to_level_custom_dtype():
+    df = pl.DataFrame({"x": pl.Series(["a", "b"], dtype=pl.Enum(["a", "b"]))})
+    r = df.ps.with_columns(pl.col("x").ps_enum.to_level(pl.UInt8))
+    assert r["x"].dtype == pl.UInt8
+    assert r["x"].to_list() == [0, 1]
+
+
+def test_to_level_empty():
+    df = pl.DataFrame({"x": pl.Series([], dtype=pl.Enum(["a", "b"]))})
+    r = df.ps.with_columns(pl.col("x").ps_enum.to_level())
+    assert r["x"].dtype == pl.UInt32
+    assert r["x"].to_list() == []
+
+
 # ── unify ─────────────────────────────────────────────────────────────────────
 
 

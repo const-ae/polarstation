@@ -14,25 +14,30 @@ def _require_enum(name: str, dtype) -> None:
     )
 
 
+def _enum_to_level(expr: pl.Expr, dtype: pl.DataType = pl.UInt32) -> pl.Expr:
+  """Return the 0-based integer level index of an Enum expression."""
+  return expr.cast(dtype)
+
+
 def _get_cats(lf: pl.LazyFrame, col_ref: pl.Expr, name: str, dtype) -> list[str]:
   """Return the category list, deriving it from col_ref for String/Categorical."""
   if isinstance(dtype, pl.Enum):
     return dtype.categories.to_list()
-  return lf.select(col_ref.cast(pl.String).drop_nulls().unique().sort()).collect()[name].to_list()
+  # Sort by native dtype first (so integers sort numerically, dates chronologically, etc.),
+  # then stringify
+  return (
+    lf.select(col_ref.drop_nulls().unique().sort().cast(pl.String).alias(name))
+    .collect()[name]
+    .to_list()
+  )
 
 
 def _make_impl(*, lf, name, col_ref, dtype, categories, make_null):
-  cats = list(categories) if categories is not None else None
-  if cats is None:
-    if make_null:
-      filtered = pl.when(col_ref.cast(pl.String).is_in(make_null)).then(None).otherwise(col_ref)
-    else:
-      filtered = col_ref
-    cats = (
-      lf.select(filtered.drop_nulls().unique().sort().cast(pl.String).alias(name))
-      .collect()[name]
-      .to_list()
-    )
+  if categories is not None:
+    cats = list(categories)
+  else:
+    make_null_set = set(make_null)
+    cats = [c for c in _get_cats(lf, col_ref, name, dtype) if c not in make_null_set]
   str_col = col_ref.cast(pl.String)
   if make_null:
     str_col = pl.when(str_col.is_in(make_null)).then(None).otherwise(str_col)
@@ -337,6 +342,39 @@ class PolarstationEnumExpression:
         pl.struct(expr).struct.field(col_name).cast(pl.Enum(union)).alias(col_name)
         for col_name in col_schema.names()
       ]
+
+    return FrameExpr(expr, resolver)
+
+  def to_level(self, dtype: pl.DataType = pl.UInt32) -> FrameExpr:
+    """Return the 0-based position of each value in the category list.
+
+    The column is first cast to Enum via ``ps_enum.make()`` (categories are derived
+    from the data when not already an Enum), then each value is mapped to its integer
+    position. Nulls remain null.
+
+    Works with Enum, Categorical, and String columns.
+
+    Args:
+      dtype: Integer dtype of the output column. Defaults to ``pl.UInt32``.
+
+    Examples:
+      animals = polarstation.make_example_data("animals")
+      animals.ps.with_columns(
+          pl.col("animal").ps_enum.make().ps_enum.to_level()
+      )
+    """
+    expr = self._expr
+
+    def resolver(lf: pl.LazyFrame) -> list[pl.Expr]:
+      col_schema = lf.select(expr).collect_schema()
+      result = []
+      for name in col_schema.names():
+        col_ref = pl.struct(expr).struct.field(name)
+        enum_expr = _make_impl(
+          lf=lf, name=name, col_ref=col_ref, dtype=col_schema[name], categories=None, make_null=[]
+        )
+        result.append(_enum_to_level(enum_expr, dtype).alias(name))
+      return result
 
     return FrameExpr(expr, resolver)
 
