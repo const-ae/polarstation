@@ -248,11 +248,14 @@ def _cut_enum_expr(
   """
   bounds_phys = [lo_phys] + breaks_phys + [hi_phys]
   enum_dtype = pl.Enum(categories)
+  # Cast to Enum explicitly so .to_physical() returns reliable 0-based indices
+  # on all Polars versions (pre-1.40 .cut() returns unordered Categorical).
   cat_expr = (
     col_ref
     .cast(enum_dtype)
     .to_physical()
     .cut([float(b) for b in breaks_phys], labels=labels, left_closed=left_closed)
+    .cast(pl.Enum(labels))
   )
   if return_struct:
     idx = cat_expr.to_physical()
@@ -338,7 +341,10 @@ def _cut_expr(
   bounds = [lo] + breaks + [hi]
   n = len(bounds) - 1
   labs = list(labels)
-  cat_expr = col_ref.cut(breaks, labels=labs, left_closed=left_closed)
+  enum_dtype = pl.Enum(labs)
+  # Cast to Enum explicitly: on Polars ≤1.39 .cut() returns unordered Categorical,
+  # which makes .to_physical() unreliable and breaks return_struct indexing.
+  cat_expr = col_ref.cut(breaks, labels=labs, left_closed=left_closed).cast(enum_dtype)
   if return_struct:
     idx = cat_expr.to_physical()
     if discrete:
@@ -361,7 +367,7 @@ def _cut_expr(
       lo_lit = pl.lit(pl.Series(bounds[:-1], dtype=pl.Float64))
       hi_lit = pl.lit(pl.Series(bounds[1:], dtype=pl.Float64))
     return pl.struct(lo=lo_lit.gather(idx), hi=hi_lit.gather(idx))
-  return cat_expr
+  return cat_expr  # already cast to Enum above
 
 
 def _cut_physical_representation_expr(
@@ -376,10 +382,13 @@ def _cut_physical_representation_expr(
 ) -> pl.Expr:
   """Like _cut_expr but operates on the physical (integer) representation of the column."""
   bounds_phys = [lo_phys] + breaks_phys + [hi_phys]
+  # Cast to Enum explicitly so .to_physical() returns reliable 0-based indices
+  # on all Polars versions (pre-1.40 .cut() returns unordered Categorical).
   cat_expr = (
     col_ref
     .to_physical()
     .cut([float(b) for b in breaks_phys], labels=labels, left_closed=left_closed)
+    .cast(pl.Enum(labels))
   )
   if return_struct:
     idx = cat_expr.to_physical()

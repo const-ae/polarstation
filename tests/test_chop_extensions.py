@@ -814,3 +814,50 @@ def test_chop_temporal_breaks_on_string_col_raises():
 def test_width_timedelta_on_numeric_col_raises():
     with pytest.raises(TypeError, match="timedelta"):
         DF10.ps.with_columns(pl.col("x").ps_chop.width(TD(days=1)))
+
+
+# ── regression: issues #1 and #2 ──────────────────────────────────────────────
+
+
+def test_chop_returns_enum_not_categorical():
+    # Issue #2: chop() must return Enum (ordered) not Categorical (unordered),
+    # regardless of Polars version.
+    BREAKS = [0, 1, 2, 5, 10, 50, 100, 200, 500, 1000]
+    df = pl.DataFrame({"n": [3, 250, 40, 5000]})
+    out = df.ps.with_columns(g=pl.col("n").ps_chop.chop(BREAKS))
+    assert isinstance(out["g"].dtype, pl.Enum), f"expected Enum, got {out['g'].dtype}"
+    # Sorting by the Enum column must follow bin order, not lexical order.
+    sorted_labels = out.sort("g")["g"].to_list()
+    assert sorted_labels == ["[2, 4]", "[10, 49]", "[200, 499]", "[1000, +∞)"]
+
+
+def test_chop_return_struct_integer_bounds_aligned():
+    # Issue #1: return_struct=True for integer columns must return bounds that
+    # are consistent with the label — lo ≤ x < hi (or lo < x ≤ hi right-closed).
+    BREAKS = [0, 1, 2, 5, 10]
+    df = pl.DataFrame({"x": [0, 1, 3, 7, 50]})
+    out = df.ps.with_columns(
+        label=pl.col("x").ps_chop.chop(BREAKS),
+        b=pl.col("x").ps_chop.chop(BREAKS, return_struct=True),
+    )
+    rows = out.to_dicts()
+    for row in rows:
+        lo = row["b"]["lo"]
+        hi = row["b"]["hi"]
+        x = float(row["x"])
+        assert (lo == float("-inf") or lo <= x), f"lo={lo} > x={x}"
+        assert (hi == float("inf") or x < hi or (hi == math.floor(hi) and x <= hi)), (
+            f"x={x} not within [{lo}, {hi}]"
+        )
+
+
+def test_chop_return_struct_float_no_crash():
+    # Issue #1: return_struct=True for float columns must not raise OutOfBoundsError.
+    BREAKS = [1.5, 3.5, 7.0]
+    df = pl.DataFrame({"x": [0.5, 2.0, 5.0, 8.0]})
+    out = df.ps.with_columns(b=pl.col("x").ps_chop.chop(BREAKS, return_struct=True))
+    rows = out["b"].to_list()
+    assert rows[0] == {"lo": float("-inf"), "hi": 1.5}
+    assert rows[1] == {"lo": 1.5, "hi": 3.5}
+    assert rows[2] == {"lo": 3.5, "hi": 7.0}
+    assert rows[3] == {"lo": 7.0, "hi": float("inf")}
