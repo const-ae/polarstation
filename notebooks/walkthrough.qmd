@@ -7,7 +7,7 @@ This package is an extension of polars and provides some helpful data science ut
 
 ```{python}
 import polars as pl
-import polarstation
+import polarstation as ps
 ```
 
 ```{python}
@@ -32,7 +32,7 @@ from this package you should call them from within `df.ps.with_columns(...)`.
 First, thanks to Allison Horst for making this [dataset](https://allisonhorst.github.io/palmerpenguins/index.html) widely available.
 
 ```{python}
-penguins = polarstation.make_example_data("penguins")
+penguins = ps.make_example_data("penguins")
 penguins
 ```
 
@@ -158,3 +158,43 @@ In addition to `chop` there are also
 - `ps_chop.n_groups` to cut into n equal sized groups
 - `ps_chop.quantiles` to cut with quantile breaks.
 
+
+# Calling arbitrary functions
+
+Not every operation has a native Polars expression — clustering is a good example. `ps.F`
+lets you call an arbitrary function (numpy, scipy, ...) directly on columns. Unlike `map_batches`,
+`F` always hands the function the *complete* column, never a sample or a batch, which matters here:
+clustering only makes sense with all the points at once.
+
+Let's see how well clustering on just the bill measurements recovers the real species groups,
+without using the `species` column at all.
+
+```{python}
+import numpy as np
+from scipy.cluster.hierarchy import fclusterdata
+
+clustered = penguins.drop_nulls(["bill_length_mm", "bill_depth_mm"]).ps.with_columns(
+  cluster=ps.F(fclusterdata)(
+    pl.concat_arr(pl.col("bill_length_mm"), pl.col("bill_depth_mm")),
+    t=3,
+    criterion="maxclust",
+    method="ward",
+  ).ps_enum.make()
+)
+(
+  clustered.group_by("species", "cluster")
+  .agg(pl.len())
+  .ps.with_columns(pl.col("len").ps_str.format("n={:3d}"))
+  .sort("species", "cluster")
+)
+```
+
+```{python}
+(clustered
+  .pipe(ggplot, aes(x="bill_length_mm", y="bill_depth_mm", color="cluster", shape="species")) +
+    geom_point(size=3)
+)
+```
+
+Clustering only sees the bill measurements, not the species labels, yet the clusters line up with
+the real species groups fairly well.

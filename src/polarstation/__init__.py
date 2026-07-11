@@ -11,6 +11,8 @@ from polarstation import typing as typing
 from polarstation.func_extensions import B as B
 from polarstation.func_extensions import E as E
 from polarstation.func_extensions import F as F
+from polarstation.func_extensions import fmt_col as fmt_col
+from polarstation.func_extensions import format as format  # noqa: A004
 from polarstation.typing import IntoExpr as IntoExpr
 
 

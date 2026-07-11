@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import base64
+import itertools
+import pickle
+import string
+from builtins import format as _builtin_format
 from collections.abc import Callable
 
 import polars as pl
 
 from polarstation.frame_expr import FrameExpr
+from polarstation.typing import IntoExpr, _into_expr
 
 
 def _split_expr_args(args: tuple, kwargs: dict) -> tuple[list[tuple[int | str, pl.Expr]], Callable]:
@@ -203,3 +209,115 @@ def E(  # noqa: N802
     )
 
   return call
+
+
+# ── fmt: an Expr-aware str.format() ──────────────────────────────────────────
+#
+# `FmtPlaceholder` backs `ps.fmt_col(...)`: it wraps an expression so it can be
+# embedded in a *real* f-string by using a modified `__format__` function on the FmtPlaceholder
+# class.
+_FMT_FIELD_PREFIX = "__ps_fmt_"
+
+
+class FmtPlaceholder:
+  """Wraps a pl.Expr for embedding in a real f-string via `ps.fmt_col(...)`."""
+
+  __slots__ = ("_expr",)
+
+  def __init__(self, expr: pl.Expr) -> None:
+    self._expr = expr
+
+  def __format__(self, spec: str) -> str:
+    payload = base64.b64encode(pickle.dumps((self._expr, spec))).decode("ascii")
+    return "{" + _FMT_FIELD_PREFIX + payload + "}"
+
+
+def fmt_col(column: IntoExpr) -> FmtPlaceholder:
+  """Mark a column for embedding inside a real f-string, for a following ``ps.format(...)``.
+
+  Shorthand for ``FmtPlaceholder(pl.col(column))`` when given a string, or
+  ``FmtPlaceholder(column)`` directly when given a ``pl.Expr`` — see ``ps.format`` for
+  the full explanation and examples.
+
+  Examples:
+    ```{python}
+    import polars as pl
+    import polarstation as ps
+
+    df = pl.DataFrame({"err": [0.5, 1.25], "n": [3, 12]})
+    df.with_columns(
+        msg=ps.format(f"error={ps.fmt_col('err'):.2f} (n={ps.fmt_col('n')})")
+    )
+    ```
+  """
+  return FmtPlaceholder(_into_expr(column))
+
+
+def format(template: str, *args, **kwargs) -> pl.Expr:  # noqa: A001
+  """Format columns into a string, the way ``str.format`` formats values.
+
+  ``template`` uses the same ``{field:spec}`` syntax as ``str.format`` (built on
+  the same ``string.Formatter`` parser). Any field whose value is a ``pl.Expr`` is
+  formatted per-row via Python's own ``format(value, spec)`.
+  A field whose value is a plain Python value
+  (not a ``pl.Expr``) is formatted once, immediately, like ordinary ``str.format``.
+
+  Examples:
+    ```{python}
+    import polars as pl
+    import polarstation as ps
+
+    df = pl.DataFrame({"err": [0.5, 1.25, 12.0]})
+    df.with_columns(msg=ps.format("error={:.2f}", pl.col("err")))
+    ```
+
+  A single expression can also be formatted fluently via ``Expr.ps_str.format``:
+    ```{python}
+    df.ps.with_columns(msg=pl.col("err").ps_str.format("error={:.2f}"))
+    ```
+
+  For several expressions in one template, ``ps.fmt_col(...)`` marks the spot
+  inside a real f-string — the format spec (``:.2f`` below) is written exactly
+  where it would be for any other value:
+    ```{python}
+    df2 = pl.DataFrame({"err": [0.5, 1.25], "n": [3, 12]})
+    df2.with_columns(
+        msg=ps.format(f"error={ps.fmt_col('err'):.2f} (n={ps.fmt_col('n')})")
+    )
+    ```
+  """
+  formatter = string.Formatter()
+  pieces: list[pl.Expr] = []
+  literal_buf: list[str] = []
+  auto_index = itertools.count()
+
+  def flush_literal() -> None:
+    if literal_buf:
+      pieces.append(pl.lit("".join(literal_buf)))
+      literal_buf.clear()
+
+  for literal_text, field_name, format_spec, _conversion in formatter.parse(template):
+    if literal_text:
+      literal_buf.append(literal_text)
+    if field_name is None:
+      continue
+
+    if field_name.startswith(_FMT_FIELD_PREFIX):
+      payload = field_name[len(_FMT_FIELD_PREFIX) :]
+      value, spec = pickle.loads(base64.b64decode(payload))
+    elif field_name == "":
+      value, spec = formatter.get_value(next(auto_index), args, kwargs), format_spec
+    else:
+      key = int(field_name) if field_name.isdigit() else field_name
+      value, spec = formatter.get_value(key, args, kwargs), format_spec
+
+    if isinstance(value, pl.Expr):
+      flush_literal()
+      pieces.append(E(lambda v, spec=spec: _builtin_format(v, spec), return_dtype=pl.String)(value))
+    else:
+      literal_buf.append(_builtin_format(value, spec))
+
+  flush_literal()
+  if not pieces:
+    return pl.lit("".join(literal_buf))
+  return pl.concat_str(pieces, separator="")

@@ -4,11 +4,46 @@ from typing import Literal
 
 import polars as pl
 
+from polarstation.frame_expr import FrameExpr, resolve_across_columns
+from polarstation.func_extensions import format as ps_format
+
 
 @pl.api.register_expr_namespace("ps_str")
 class PolarstationStringExpression:
   def __init__(self, expr: pl.Expr) -> None:
     self._expr = expr
+
+  def format(self, template: str) -> FrameExpr:
+    """Format this column's values into ``template``, the way ``str.format`` formats a value.
+
+    For a plain (non-Struct) column, this is a one-argument shorthand for
+    ``ps.format(template, self)`` — ``template`` contains exactly one ``{...}`` field,
+    referring to this expression's own values. For a Struct column, each field is
+    instead unpacked as a named argument, keyed by its field name — ``template`` can
+    then reference each one by name, the same way ``ps.format(template, **fields)`` would.
+
+    Examples:
+      ```{python}
+      pl.DataFrame({"err": [0.5, 1.25, 12.0]}).ps.with_columns(
+          msg=pl.col("err").ps_str.format("error={:.2f}")
+      )
+      ```
+
+      ```{python}
+      pl.DataFrame({"x": [1, 2], "y": [3.0, 4.0]}).ps.with_columns(
+          msg=pl.struct(a="x", b="y").ps_str.format("a={a}, b={b:.1f}")
+      )
+      ```
+    """
+    expr = self._expr
+
+    def handler(*, lf, name, col_ref, dtype):
+      if isinstance(dtype, pl.Struct):
+        fields = {f.name: col_ref.struct.field(f.name) for f in dtype.fields}
+        return ps_format(template, **fields)
+      return ps_format(template, col_ref)
+
+    return FrameExpr(expr, resolve_across_columns(expr, handler))
 
   def count(self, pattern="") -> pl.Expr:
     r"""Count non-overlapping regex matches in each string.
