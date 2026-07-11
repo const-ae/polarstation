@@ -71,12 +71,29 @@ sections:
     overview: true
     desc: "Methods on the `.ps_str` expression namespace."
     contents:
+      - display: Expr.ps_str.format
+        path: string_extensions.PolarstationStringExpression.format
       - display: Expr.ps_str.count
         path: string_extensions.PolarstationStringExpression.count
       - display: Expr.ps_str.wrap
         path: string_extensions.PolarstationStringExpression.wrap
       - display: Expr.ps_str.trunc
         path: string_extensions.PolarstationStringExpression.trunc
+
+  - title: "Function helpers"
+    overview: true
+    desc: "Top-level `ps.*` functions for calling arbitrary functions on expressions and formatting strings."
+    contents:
+      - display: ps.F
+        path: func_extensions.F
+      - display: ps.B
+        path: func_extensions.B
+      - display: ps.E
+        path: func_extensions.E
+      - display: ps.format
+        path: func_extensions.format
+      - display: ps.fmt_col
+        path: func_extensions.fmt_col
 
   - title: "Internals"
     desc: "Building blocks for writing custom `FrameExpr`."

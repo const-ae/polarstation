@@ -258,7 +258,7 @@ def format(template: str, *args, **kwargs) -> pl.Expr:  # noqa: A001
 
   ``template`` uses the same ``{field:spec}`` syntax as ``str.format`` (built on
   the same ``string.Formatter`` parser). Any field whose value is a ``pl.Expr`` is
-  formatted per-row via Python's own ``format(value, spec)`.
+  formatted per-row via Python's own ``format(value, spec)``.
   A field whose value is a plain Python value
   (not a ``pl.Expr``) is formatted once, immediately, like ordinary ``str.format``.
 
