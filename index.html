@@ -215,7 +215,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="quick-start" class="level2">
 <h2 class="anchored" data-anchor-id="quick-start">Quick start</h2>
-<div id="c05146a8" class="cell" data-execution_count="2">
+<div id="179d4e89" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polarstation   <span class="co"># registers extension functions for polars</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -268,7 +268,7 @@ Enum(categories=['bird', 'dog', 'cow'])</code></pre>
 <h3 class="anchored" data-anchor-id="calling-arbitrary-functions">Calling arbitrary functions</h3>
 <p>Sometimes there’s no Polars expression for what you need. <code>ps.F</code>, <code>ps.B</code>, and <code>ps.E</code> wrap arbitrary functions (numpy, scipy, plain Python, …) so they can be called directly on expressions, in place of hand-rolled <code>pl.struct(...).map_batches(...)</code> /<code>map_elements(...)</code>.</p>
 <p><strong><code>ps.F</code></strong> is the right default whenever a function needs to see the <em>complete</em> input, not a sample or a batch — clustering is the clearest example. scipy’s <code>fclusterdata</code> takes every point at once and assigns cluster labels; there’s no Polars equivalent, and critically, it cannot be computed correctly on a slice of the data. Only the <code>pl.Expr</code> argument (<code>pl.concat_arr("x", "y")</code>) is resolved against the data — <code>t</code> and <code>criterion</code> are forwarded to <code>fclusterdata</code> unchanged:</p>
-<div id="ecbd0265" class="cell" data-execution_count="3">
+<div id="bf5172b7" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polarstation <span class="im">as</span> ps</span>
@@ -302,7 +302,7 @@ Enum(categories=['bird', 'dog', 'cow'])</code></pre>
 </div>
 </div>
 <p><strong><code>ps.B</code></strong> is the right choice when <code>fn</code> genuinely doesn’t care about batching (e.g., <code>np.logaddexp</code> (the numerically-stable way to compute <code>log(exp(a) + exp(b))</code> for which there is no equivalent in polars).</p>
-<div id="eabc3462" class="cell" data-execution_count="4">
+<div id="4743dab0" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>df2 <span class="op">=</span> pl.DataFrame({<span class="st">"log_p"</span>: [<span class="op">-</span><span class="fl">0.5</span>, <span class="op">-</span><span class="fl">3.0</span>, <span class="op">-</span><span class="fl">10.0</span>], <span class="st">"log_q"</span>: [<span class="op">-</span><span class="fl">1.2</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="op">-</span><span class="fl">9.5</span>]})</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>df2.lazy().with_columns(</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    combined<span class="op">=</span>ps.B(np.logaddexp)(pl.col(<span class="st">"log_p"</span>), pl.col(<span class="st">"log_q"</span>))</span>
@@ -321,7 +321,7 @@ Enum(categories=['bird', 'dog', 'cow'])</code></pre>
 </div>
 </div>
 <p><strong><code>ps.E</code></strong> is for functions that only accept scalars, not arrays at all — like a hand-rolled edit distance, useful for catching typos against a reference list:</p>
-<div id="007e23a8" class="cell" data-execution_count="5">
+<div id="b7a58bb9" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> levenshtein(a, b):</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(a) <span class="op">&lt;</span> <span class="bu">len</span>(b):</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>        a, b <span class="op">=</span> b, a</span>
