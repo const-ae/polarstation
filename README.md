@@ -89,6 +89,107 @@ result = (
 See the `FrameExpr` docstring for the full explanation, including when
 the peek is larger and notes on parallel evaluation.
 
+### Calling arbitrary functions
+
+Sometimes there’s no Polars expression for what you need. `ps.F`,
+`ps.B`, and `ps.E` wrap arbitrary functions (numpy, scipy, plain Python,
+…) so they can be called directly on expressions, in place of
+hand-rolled `pl.struct(...).map_batches(...)` /`map_elements(...)`.
+
+**`ps.F`** is the right default whenever a function needs to see the
+*complete* input, not a sample or a batch — clustering is the clearest
+example. scipy’s `fclusterdata` takes every point at once and assigns
+cluster labels; there’s no Polars equivalent, and critically, it cannot
+be computed correctly on a slice of the data. Only the `pl.Expr`
+argument (`pl.concat_arr("x", "y")`) is resolved against the data — `t`
+and `criterion` are forwarded to `fclusterdata` unchanged:
+
+``` python
+import numpy as np
+import polars as pl
+import polarstation as ps
+from scipy.cluster.hierarchy import fclusterdata
+
+df = pl.DataFrame({
+    "region": ["A", "A", "A", "A", "B", "B", "B", "B"],
+    "x": [0.0, 0.0, 0.0, 0.0, 100.0, 100.0, 100.0, 100.0],
+    "y": [0.0, 0.2, 9.8, 10.0, 0.0, 0.2, 9.8, 10.0],
+})
+
+df.ps.with_columns(
+    cluster=ps.F(fclusterdata)(pl.concat_arr("x", "y"), t=2, criterion="maxclust")
+)
+```
+
+    shape: (8, 4)
+    ┌────────┬───────┬──────┬─────────┐
+    │ region ┆ x     ┆ y    ┆ cluster │
+    │ ---    ┆ ---   ┆ ---  ┆ ---     │
+    │ str    ┆ f64   ┆ f64  ┆ i32     │
+    ╞════════╪═══════╪══════╪═════════╡
+    │ A      ┆ 0.0   ┆ 0.0  ┆ 1       │
+    │ A      ┆ 0.0   ┆ 0.2  ┆ 1       │
+    │ A      ┆ 0.0   ┆ 9.8  ┆ 1       │
+    │ A      ┆ 0.0   ┆ 10.0 ┆ 1       │
+    │ B      ┆ 100.0 ┆ 0.0  ┆ 2       │
+    │ B      ┆ 100.0 ┆ 0.2  ┆ 2       │
+    │ B      ┆ 100.0 ┆ 9.8  ┆ 2       │
+    │ B      ┆ 100.0 ┆ 10.0 ┆ 2       │
+    └────────┴───────┴──────┴─────────┘
+
+**`ps.B`** is the right choice when `fn` genuinely doesn’t care about
+batching (e.g., `np.logaddexp` (the numerically-stable way to compute
+`log(exp(a) + exp(b))` for which there is no equivalent in polars).
+
+``` python
+df2 = pl.DataFrame({"log_p": [-0.5, -3.0, -10.0], "log_q": [-1.2, -0.4, -9.5]})
+df2.lazy().with_columns(
+    combined=ps.B(np.logaddexp)(pl.col("log_p"), pl.col("log_q"))
+).collect()
+```
+
+    shape: (3, 3)
+    ┌───────┬───────┬───────────┐
+    │ log_p ┆ log_q ┆ combined  │
+    │ ---   ┆ ---   ┆ ---       │
+    │ f64   ┆ f64   ┆ f64       │
+    ╞═══════╪═══════╪═══════════╡
+    │ -0.5  ┆ -1.2  ┆ -0.096814 │
+    │ -3.0  ┆ -0.4  ┆ -0.328355 │
+    │ -10.0 ┆ -9.5  ┆ -9.025923 │
+    └───────┴───────┴───────────┘
+
+**`ps.E`** is for functions that only accept scalars, not arrays at all
+— like a hand-rolled edit distance, useful for catching typos against a
+reference list:
+
+``` python
+def levenshtein(a, b):
+    if len(a) < len(b):
+        a, b = b, a
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        curr = [i] + [0] * len(b)
+        for j, cb in enumerate(b, 1):
+            curr[j] = min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + (ca != cb))
+        prev = curr
+    return prev[-1]
+
+df3 = pl.DataFrame({"typed": ["aplpe", "bananna", "orange"], "correct": ["apple", "banana", "orange"]})
+df3.with_columns(dist=ps.E(levenshtein)(pl.col("typed"), pl.col("correct")))
+```
+
+    shape: (3, 3)
+    ┌─────────┬─────────┬──────┐
+    │ typed   ┆ correct ┆ dist │
+    │ ---     ┆ ---     ┆ ---  │
+    │ str     ┆ str     ┆ i64  │
+    ╞═════════╪═════════╪══════╡
+    │ aplpe   ┆ apple   ┆ 2    │
+    │ bananna ┆ banana  ┆ 1    │
+    │ orange  ┆ orange  ┆ 0    │
+    └─────────┴─────────┴──────┘
+
 ### Dev Notes
 
 To build the documentation run:
