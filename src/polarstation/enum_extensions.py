@@ -525,6 +525,11 @@ class PolarstationEnumExpression:
       animals.ps.with_columns(
           pl.col("animal").ps_enum.make().ps_enum.reorder("weight", agg=pl.Expr.mean)
       )["animal"].dtype
+
+    With ``.over()``: each group's order is computed from its own data, then categories
+    are unioned into one shared Enum's declared category list — so a value's *level*
+    (chained via ``.ps_enum.to_level()``) is always locally correct, but the Enum
+    dtype's own declared category *order* is one overall order, not any single group's.
     """
     bys = [_into_expr(by)] if isinstance(by, (pl.Expr, str)) else [_into_expr(b) for b in by]
     _tmp = [f"__by_{i}__" for i in range(len(bys))]
