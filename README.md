@@ -192,6 +192,12 @@ df3.with_columns(dist=ps.E(levenshtein)(pl.col("typed"), pl.col("correct")))
 
 ### Dev Notes
 
+To re-render the README.md run
+
+``` bash
+quarto render README.qmd --to gfm
+```
+
 To build the documentation run:
 
 ``` bash
@@ -206,10 +212,6 @@ uv run quarto preview
 
 To update the documentation at https://const-ae.github.io/polarstation/
 \``uv run quarto publish gh-pages`
-
-To re-render the README.md run
-
-    quarto render README.qmd --to gfm
 
 To upload to pypi run
 
