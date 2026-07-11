@@ -148,6 +148,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </li>  
     </ul>
   </li>
+  <li class="nav-item">
+    <a class="nav-link" href="./news.html"> 
+<span class="menu-text">Changelog</span></a>
+  </li>  
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
@@ -169,6 +173,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#details" id="toc-details" class="nav-link" data-scroll-target="#details">Details</a>
   <ul class="collapse">
   <li><a href="#how-frameexpr-stays-efficient" id="toc-how-frameexpr-stays-efficient" class="nav-link" data-scroll-target="#how-frameexpr-stays-efficient">How FrameExpr stays efficient</a></li>
+  <li><a href="#calling-arbitrary-functions" id="toc-calling-arbitrary-functions" class="nav-link" data-scroll-target="#calling-arbitrary-functions">Calling arbitrary functions</a></li>
   <li><a href="#dev-notes" id="toc-dev-notes" class="nav-link" data-scroll-target="#dev-notes">Dev Notes</a></li>
   </ul></li>
   <li><a href="#acknowledgements" id="toc-acknowledgements" class="nav-link" data-scroll-target="#acknowledgements">Acknowledgements</a></li>
@@ -210,7 +215,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="quick-start" class="level2">
 <h2 class="anchored" data-anchor-id="quick-start">Quick start</h2>
-<div id="e627d672" class="cell" data-execution_count="2">
+<div id="ba42abe1" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polarstation   <span class="co"># registers extension functions for polars</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -259,15 +264,100 @@ Enum(categories=['bird', 'dog', 'cow'])</code></pre>
 <span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>See the <code>FrameExpr</code> docstring for the full explanation, including when the peek is larger and notes on parallel evaluation.</p>
 </section>
+<section id="calling-arbitrary-functions" class="level3">
+<h3 class="anchored" data-anchor-id="calling-arbitrary-functions">Calling arbitrary functions</h3>
+<p>Sometimes there’s no Polars expression for what you need. <code>ps.F</code>, <code>ps.B</code>, and <code>ps.E</code> wrap arbitrary functions (numpy, scipy, plain Python, …) so they can be called directly on expressions, in place of hand-rolled <code>pl.struct(...).map_batches(...)</code> /<code>map_elements(...)</code>.</p>
+<p><strong><code>ps.F</code></strong> is the right default whenever a function needs to see the <em>complete</em> input, not a sample or a batch — clustering is the clearest example. scipy’s <code>fclusterdata</code> takes every point at once and assigns cluster labels; there’s no Polars equivalent, and critically, it cannot be computed correctly on a slice of the data. Only the <code>pl.Expr</code> argument (<code>pl.concat_arr("x", "y")</code>) is resolved against the data — <code>t</code> and <code>criterion</code> are forwarded to <code>fclusterdata</code> unchanged:</p>
+<div id="00766d4f" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polarstation <span class="im">as</span> ps</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.cluster.hierarchy <span class="im">import</span> fclusterdata</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pl.DataFrame({</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"region"</span>: [<span class="st">"A"</span>, <span class="st">"A"</span>, <span class="st">"A"</span>, <span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"B"</span>, <span class="st">"B"</span>, <span class="st">"B"</span>],</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"x"</span>: [<span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">0.0</span>, <span class="fl">100.0</span>, <span class="fl">100.0</span>, <span class="fl">100.0</span>, <span class="fl">100.0</span>],</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"y"</span>: [<span class="fl">0.0</span>, <span class="fl">0.2</span>, <span class="fl">9.8</span>, <span class="fl">10.0</span>, <span class="fl">0.0</span>, <span class="fl">0.2</span>, <span class="fl">9.8</span>, <span class="fl">10.0</span>],</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>df.ps.with_columns(</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    cluster<span class="op">=</span>ps.F(fclusterdata)(pl.concat_arr(<span class="st">"x"</span>, <span class="st">"y"</span>), t<span class="op">=</span><span class="dv">2</span>, criterion<span class="op">=</span><span class="st">"maxclust"</span>)</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="3">
+<pre><code>shape: (8, 4)
+┌────────┬───────┬──────┬─────────┐
+│ region ┆ x     ┆ y    ┆ cluster │
+│ ---    ┆ ---   ┆ ---  ┆ ---     │
+│ str    ┆ f64   ┆ f64  ┆ i32     │
+╞════════╪═══════╪══════╪═════════╡
+│ A      ┆ 0.0   ┆ 0.0  ┆ 1       │
+│ A      ┆ 0.0   ┆ 0.2  ┆ 1       │
+│ A      ┆ 0.0   ┆ 9.8  ┆ 1       │
+│ A      ┆ 0.0   ┆ 10.0 ┆ 1       │
+│ B      ┆ 100.0 ┆ 0.0  ┆ 2       │
+│ B      ┆ 100.0 ┆ 0.2  ┆ 2       │
+│ B      ┆ 100.0 ┆ 9.8  ┆ 2       │
+│ B      ┆ 100.0 ┆ 10.0 ┆ 2       │
+└────────┴───────┴──────┴─────────┘</code></pre>
+</div>
+</div>
+<p><strong><code>ps.B</code></strong> is the right choice when <code>fn</code> genuinely doesn’t care about batching (e.g., <code>np.logaddexp</code> (the numerically-stable way to compute <code>log(exp(a) + exp(b))</code> for which there is no equivalent in polars).</p>
+<div id="f3a8eab5" class="cell" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>df2 <span class="op">=</span> pl.DataFrame({<span class="st">"log_p"</span>: [<span class="op">-</span><span class="fl">0.5</span>, <span class="op">-</span><span class="fl">3.0</span>, <span class="op">-</span><span class="fl">10.0</span>], <span class="st">"log_q"</span>: [<span class="op">-</span><span class="fl">1.2</span>, <span class="op">-</span><span class="fl">0.4</span>, <span class="op">-</span><span class="fl">9.5</span>]})</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>df2.lazy().with_columns(</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    combined<span class="op">=</span>ps.B(np.logaddexp)(pl.col(<span class="st">"log_p"</span>), pl.col(<span class="st">"log_q"</span>))</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>).collect()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<pre><code>shape: (3, 3)
+┌───────┬───────┬───────────┐
+│ log_p ┆ log_q ┆ combined  │
+│ ---   ┆ ---   ┆ ---       │
+│ f64   ┆ f64   ┆ f64       │
+╞═══════╪═══════╪═══════════╡
+│ -0.5  ┆ -1.2  ┆ -0.096814 │
+│ -3.0  ┆ -0.4  ┆ -0.328355 │
+│ -10.0 ┆ -9.5  ┆ -9.025923 │
+└───────┴───────┴───────────┘</code></pre>
+</div>
+</div>
+<p><strong><code>ps.E</code></strong> is for functions that only accept scalars, not arrays at all — like a hand-rolled edit distance, useful for catching typos against a reference list:</p>
+<div id="1188a79a" class="cell" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> levenshtein(a, b):</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="bu">len</span>(a) <span class="op">&lt;</span> <span class="bu">len</span>(b):</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>        a, b <span class="op">=</span> b, a</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    prev <span class="op">=</span> <span class="bu">list</span>(<span class="bu">range</span>(<span class="bu">len</span>(b) <span class="op">+</span> <span class="dv">1</span>))</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i, ca <span class="kw">in</span> <span class="bu">enumerate</span>(a, <span class="dv">1</span>):</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>        curr <span class="op">=</span> [i] <span class="op">+</span> [<span class="dv">0</span>] <span class="op">*</span> <span class="bu">len</span>(b)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> j, cb <span class="kw">in</span> <span class="bu">enumerate</span>(b, <span class="dv">1</span>):</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>            curr[j] <span class="op">=</span> <span class="bu">min</span>(prev[j] <span class="op">+</span> <span class="dv">1</span>, curr[j <span class="op">-</span> <span class="dv">1</span>] <span class="op">+</span> <span class="dv">1</span>, prev[j <span class="op">-</span> <span class="dv">1</span>] <span class="op">+</span> (ca <span class="op">!=</span> cb))</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>        prev <span class="op">=</span> curr</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> prev[<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>df3 <span class="op">=</span> pl.DataFrame({<span class="st">"typed"</span>: [<span class="st">"aplpe"</span>, <span class="st">"bananna"</span>, <span class="st">"orange"</span>], <span class="st">"correct"</span>: [<span class="st">"apple"</span>, <span class="st">"banana"</span>, <span class="st">"orange"</span>]})</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>df3.with_columns(dist<span class="op">=</span>ps.E(levenshtein)(pl.col(<span class="st">"typed"</span>), pl.col(<span class="st">"correct"</span>)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<pre><code>shape: (3, 3)
+┌─────────┬─────────┬──────┐
+│ typed   ┆ correct ┆ dist │
+│ ---     ┆ ---     ┆ ---  │
+│ str     ┆ str     ┆ i64  │
+╞═════════╪═════════╪══════╡
+│ aplpe   ┆ apple   ┆ 2    │
+│ bananna ┆ banana  ┆ 1    │
+│ orange  ┆ orange  ┆ 0    │
+└─────────┴─────────┴──────┘</code></pre>
+</div>
+</div>
+</section>
 <section id="dev-notes" class="level3">
 <h3 class="anchored" data-anchor-id="dev-notes">Dev Notes</h3>
-<p>To build the documentation run:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run quarto render</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>and then in a separate terminal</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run quarto preview</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>To update the documentation at https://const-ae.github.io/polarstation/ `<code>uv run quarto publish gh-pages</code></p>
 <p>To re-render the README.md run</p>
-<pre><code>quarto render README.qmd --to gfm</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">quarto</span> render README.qmd <span class="at">--to</span> gfm</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To build the documentation run:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run quarto render</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>and then in a separate terminal</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run quarto preview</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>To update the documentation at https://const-ae.github.io/polarstation/ `<code>uv run quarto publish gh-pages</code></p>
 <p>To upload to pypi run</p>
 <pre><code>uv build
 uv publish</code></pre>
