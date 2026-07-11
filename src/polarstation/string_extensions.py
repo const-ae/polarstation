@@ -1,6 +1,6 @@
 import math
 import textwrap
-from typing import Literal
+from typing import Any, Literal
 
 import polars as pl
 
@@ -63,7 +63,7 @@ class PolarstationStringExpression:
     initial_indent: int = 0,
     subsequent_indent: int = 0,
     break_on_hyphens: bool = True,
-    **kwargs,
+    **kwargs: Any,
   ) -> pl.Expr:
     """Wrap each string to at most `width` characters per line.
 

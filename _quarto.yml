@@ -7,6 +7,7 @@ project:
     - reference/index.qmd
     - notebooks/chop_labels.qmd
     - notebooks/walkthrough.qmd
+    - news.qmd
 
 website:
   title: polarstation
@@ -23,6 +24,8 @@ website:
             text: Walkthrough of the package
           - href: notebooks/chop_labels.qmd
             text: Details on chopping functions
+      - href: news.qmd
+        text: Changelog
   repo-url: https://github.com/const-ae/polarstation
   repo-actions: [issue]
 

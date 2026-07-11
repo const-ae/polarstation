@@ -1,4 +1,4 @@
-# polarstation 0.2.2
+# v0.2.2 (2026-07-11)
 
 * Add `ps.F`, `ps.B`, `ps.E` for calling arbitrary functions (numpy, scipy, plain Python, ...)
   directly on expressions, in place of hand-rolled `pl.struct(...).map_batches(...)`/
@@ -11,12 +11,12 @@
 * `FrameExpr` (and therefore any `ps_enum`/`ps_chop`/`ps.apply`/`ps.F` expression) now supports
   `.over(*by)`, a group-aware equivalent of `pl.Expr.over()`.
 
-# polarstation 0.2.1
+# v0.2.1 (2026-07-01)
 
 * Add `ps_enum.to_level()` and refactor enum handling to avoid unnecessary `to_physical()` calls.
 * Fix `ps_chop.chop()` on older Polars versions.
 
-# polarstation 0.2.0
+# v0.2.0 (2026-06-04)
 
 * Rename `ps_enum.relabel` to `ps_enum.rename`.
 * Add `ps_enum.move()` and `ps_enum.unify()`.
@@ -25,16 +25,16 @@
 * Refactor column resolution to consistently alias inside the resolver across all `ps_enum`/
   `ps_chop` functions.
 
-# polarstation 0.1.5
+# v0.1.5 (2026-05-30)
 
 * Clarify which `ps_enum` functions accept plain `String` columns (not just `Enum`/`Categorical`).
 
-# polarstation 0.1.4
+# v0.1.4 (2026-05-26)
 
 * Add `ps.select`, the `FrameExpr`-aware counterpart of `ps.with_columns` for `.select()`.
 * Relax the minimum supported Python version to 3.10.
 
-# polarstation 0.1.0–0.1.3
+# v0.1.0–0.1.3 (2026-05-25)
 
 * Initial release: `ps_enum` (Enum creation, reordering, lumping rare levels, replacing missing
   values, ...), `ps_chop` (binning numeric/temporal/categorical columns, inspired by R's
