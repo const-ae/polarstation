@@ -197,7 +197,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 <p>This package is an extension of polars and provides some helpful data science utilities.</p>
-<div id="316287f5" class="cell" data-execution_count="1">
+<div id="fbe8b235" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polars <span class="im">as</span> pl</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> polarstation <span class="im">as</span> ps</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
@@ -205,7 +205,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="lets-meet-the-penguins-from-palmer-archipelago-antarctica" class="level1">
 <h1>Let’s meet the penguins from Palmer Archipelago, Antarctica</h1>
 <p>First, thanks to Allison Horst for making this <a href="https://allisonhorst.github.io/palmerpenguins/index.html">dataset</a> widely available.</p>
-<div id="926b2311" class="cell" data-execution_count="3">
+<div id="922fde41" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>penguins <span class="op">=</span> ps.make_example_data(<span class="st">"penguins"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>penguins</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="3">
@@ -231,7 +231,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>The dataset contains three string columns which we want to convert to <code>pl.Enum</code>. Typically, you would need to spell out each category, but this is tedious. Instead, you could use <code>pl.Categorical</code> which automatically detects the categories but those don’t have an inherent order and sometimes behave surprisingly.</p>
-<div id="2082d55a" class="cell" data-execution_count="4">
+<div id="dc03a575" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>penguins.with_columns(</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  pl.col(<span class="st">'species'</span>).cast(pl.Enum(categories<span class="op">=</span>[<span class="st">'Adelie'</span>, <span class="st">'Chinstrap'</span>, <span class="st">'Gentoo'</span>]))</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>).dtypes</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -247,7 +247,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>This package provides an <code>Expr.ps_enum</code> namespace that makes working with <code>Enum</code> columns easier, including their creation.</p>
-<div id="9bc3f198" class="cell" data-execution_count="5">
+<div id="07dd1527" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Note that we use .ps.with_columns</span></span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>penguins.ps.with_columns(</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  pl.col(<span class="st">'species'</span>).ps_enum.make()</span>
@@ -264,7 +264,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>Sometimes we want to change the order of the enum categories or explicitly deal with missing values. This is particularly helpful if we want to use <code>plotnine</code> for data visualization.</p>
-<div id="f4eb6a64" class="cell" data-execution_count="6">
+<div id="66bdd73f" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> plotnine <span class="im">import</span> <span class="op">*</span></span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>(penguins</span>
@@ -286,7 +286,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>Let’s say we know that the missing values in the <code>sex</code> column are actually female penguins; we can easily replace them using the <code>ps_enum.missing_to_category</code> function.</p>
-<div id="6cf8ae01" class="cell" data-execution_count="7">
+<div id="936ae457" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>(penguins</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  .ps.with_columns(</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">'sex'</span>).ps_enum.make().ps_enum.missing_to_category(<span class="st">'female'</span>)</span>
@@ -306,7 +306,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>It is also easy to sort the categories so that they are increasing left to right. Here we make sure that the groups are sorted by their smallest value:</p>
-<div id="efd9ac0f" class="cell" data-execution_count="8">
+<div id="4fc62671" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>penguins.group_by(<span class="st">'species'</span>).agg(pl.col(<span class="st">'body_mass_g'</span>).<span class="bu">min</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="8">
 <pre><code>shape: (3, 2)
@@ -315,13 +315,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 │ ---       ┆ ---         │
 │ str       ┆ i64         │
 ╞═══════════╪═════════════╡
-│ Adelie    ┆ 2850        │
-│ Gentoo    ┆ 3950        │
 │ Chinstrap ┆ 2700        │
+│ Gentoo    ┆ 3950        │
+│ Adelie    ┆ 2850        │
 └───────────┴─────────────┘</code></pre>
 </div>
 </div>
-<div id="03ffd17c" class="cell" data-execution_count="9">
+<div id="245fa824" class="cell" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Note that ps_enum.reorder implicitly converts the input to an Enum</span></span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>(penguins</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  .ps.with_columns(</span>
@@ -342,7 +342,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>It is also trivial to reverse the order:</p>
-<div id="2117597f" class="cell" data-execution_count="10">
+<div id="fbf8ebb1" class="cell" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>(penguins</span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  .ps.with_columns(</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">'species'</span>).ps_enum.reorder(by <span class="op">=</span> <span class="st">"body_mass_g"</span>, agg<span class="op">=</span>pl.Expr.<span class="bu">min</span>).ps_enum.rev()</span>
@@ -362,7 +362,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>We can also combine the ‘species’ and ‘island’ columns and then lump together the rare combinations so that they are still the smallest group. For completeness, we will also sort the output by number of occurrences.</p>
-<div id="3906c0a0" class="cell" data-execution_count="11">
+<div id="a33475ae" class="cell" data-execution_count="11">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> lump_lowfreq(df):</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> df[<span class="st">'n'</span>].reverse()</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> (n.cum_sum() <span class="op">&lt;=</span> n.shift(<span class="op">-</span><span class="dv">1</span>, fill_value<span class="op">=</span><span class="dv">0</span>)).cum_min().reverse()</span>
@@ -392,7 +392,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="chopping" class="level1">
 <h1>Chopping</h1>
 <p>The package also comes with a number of convenient <code>chop</code> functions which extend the <code>cut</code> function in polars. They are inspired by the <a href="https://hughjonesd.github.io/santoku/reference/index.html">santoku</a> package in R.</p>
-<div id="7343cdd9" class="cell" data-execution_count="12">
+<div id="18da91d4" class="cell" data-execution_count="12">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>(penguins.ps.with_columns(</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  beak_size<span class="op">=</span> pl.col(<span class="st">"bill_length_mm"</span>)</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    .ps_chop.chop(breaks<span class="op">=</span>[<span class="dv">40</span>, <span class="dv">50</span>]))</span>
@@ -430,7 +430,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>Calling arbitrary functions</h1>
 <p>Not every operation has a native Polars expression — clustering is a good example. <code>ps.F</code> lets you call an arbitrary function (numpy, scipy, …) directly on columns. Unlike <code>map_batches</code>, <code>F</code> always hands the function the <em>complete</em> column, never a sample or a batch, which matters here: clustering only makes sense with all the points at once.</p>
 <p>Let’s see how well clustering on just the bill measurements recovers the real species groups, without using the <code>species</code> column at all.</p>
-<div id="c168851e" class="cell" data-execution_count="13">
+<div id="ac240160" class="cell" data-execution_count="13">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.cluster.hierarchy <span class="im">import</span> fclusterdata</span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -465,7 +465,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 └───────────┴─────────┴───────┘</code></pre>
 </div>
 </div>
-<div id="4590743f" class="cell" data-execution_count="14">
+<div id="b27ff4b9" class="cell" data-execution_count="14">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>(clustered</span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  .pipe(ggplot, aes(x<span class="op">=</span><span class="st">"bill_length_mm"</span>, y<span class="op">=</span><span class="st">"bill_depth_mm"</span>, color<span class="op">=</span><span class="st">"cluster"</span>, shape<span class="op">=</span><span class="st">"species"</span>)) <span class="op">+</span></span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    geom_point(size<span class="op">=</span><span class="dv">3</span>)</span>

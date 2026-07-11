@@ -413,7 +413,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>*exprs</strong> = <code>()</code></p>
 <p><strong>**named_exprs</strong> = <code>{}</code></p>
 <p><strong>Examples:</strong></p>
-<div id="ada866bb" class="cell" data-execution_count="2">
+<div id="5b8567d9" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.reorder(by<span class="op">=</span><span class="st">"weight"</span>)</span>
@@ -444,7 +444,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>*exprs</strong> = <code>()</code></p>
 <p><strong>**named_exprs</strong> = <code>{}</code></p>
 <p><strong>Examples:</strong></p>
-<div id="c1c15a97" class="cell" data-execution_count="3">
+<div id="bfb15bd6" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>animals.ps.select(pl.col(<span class="st">"animal"</span>).ps_enum.make(), <span class="st">"weight"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="3">
@@ -476,7 +476,7 @@ Called as fn(lf, col_ref) → pl.Expr for each matched column. col_ref evaluates
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="c49f0bb5" class="cell" data-execution_count="4">
+<div id="423d766a" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> center_scale(lf: pl.LazyFrame, col_ref: pl.Expr) <span class="op">-&gt;</span> pl.Expr:</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    stats <span class="op">=</span> lf.select(</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>        col_ref.mean().alias(<span class="st">"m"</span>), col_ref.std().alias(<span class="st">"s"</span>)</span>
@@ -502,7 +502,7 @@ Called as fn(lf, col_ref) → pl.Expr for each matched column. col_ref evaluates
 └───────────┘</code></pre>
 </div>
 </div>
-<div id="ea643bcd" class="cell" data-execution_count="5">
+<div id="acf85ac7" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pl.DataFrame({</span>
@@ -560,7 +560,7 @@ Values to replace with null before casting.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="0a75bbc6" class="cell" data-execution_count="6">
+<div id="443ffe24" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(pl.col(<span class="st">"animal"</span>).ps_enum.make())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="6">
@@ -578,7 +578,7 @@ Values to replace with null before casting.
 └────────┴────────┘</code></pre>
 </div>
 </div>
-<div id="0b0e763e" class="cell" data-execution_count="7">
+<div id="5815b734" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"?"</span>]}).ps.with_columns(</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_enum.make(categories<span class="op">=</span>[<span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"z"</span>], make_null<span class="op">=</span><span class="st">"?"</span>)</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>)[<span class="st">'x'</span>].dtype</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -613,7 +613,7 @@ Optional callable that receives the non-null counts DataFrame (columns: category
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="afb95ecf" class="cell" data-execution_count="8">
+<div id="9697d43d" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.lump(n<span class="op">=</span><span class="dv">1</span>)</span>
@@ -653,7 +653,7 @@ If True (default), raise if any dict key is not an existing category.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="ea0e1860" class="cell" data-execution_count="9">
+<div id="e01d4a64" class="cell" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.rename({<span class="st">"bird"</span>: <span class="st">"Bird"</span>, <span class="st">"cow"</span>: <span class="st">"Cow"</span>})</span>
@@ -673,7 +673,7 @@ If True (default), raise if any dict key is not an existing category.
 └────────┴────────┘</code></pre>
 </div>
 </div>
-<div id="0d7d6d47" class="cell" data-execution_count="10">
+<div id="65807cf0" class="cell" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.rename(<span class="bu">str</span>.upper)</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -698,7 +698,7 @@ If True (default), raise if any dict key is not an existing category.
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.rev()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Reverse the order of categories.</p>
 <p><strong>Examples:</strong></p>
-<div id="f958e052" class="cell" data-execution_count="11">
+<div id="d622aeb4" class="cell" data-execution_count="11">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.rev()</span>
@@ -722,7 +722,7 @@ If True, least frequent first instead.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="47fb7bee" class="cell" data-execution_count="12">
+<div id="63a419db" class="cell" data-execution_count="12">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.infreq()</span>
@@ -765,7 +765,7 @@ How to handle categories whose aggregate is null — ‘drop’ excludes them, �
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="5b517a6e" class="cell" data-execution_count="13">
+<div id="3aee5faf" class="cell" data-execution_count="13">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.reorder(<span class="st">"weight"</span>, agg<span class="op">=</span>pl.Expr.mean)</span>
@@ -788,7 +788,7 @@ The new ordered category list.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="47edf9f5" class="cell" data-execution_count="14">
+<div id="f97ce615" class="cell" data-execution_count="14">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.set_categories([<span class="st">"cow"</span>, <span class="st">"dog"</span>])</span>
@@ -816,7 +816,7 @@ The new ordered category list.
 <p>Categories are ordered by first appearance across columns (left to right). Values are never changed; only the dtype gains the extra categories.</p>
 <p>Requires all matched columns to already be Enum. Call <code>.ps_enum.make()</code> first if needed.</p>
 <p><strong>Examples:</strong></p>
-<div id="b390f242" class="cell" data-execution_count="15">
+<div id="ea423b00" class="cell" data-execution_count="15">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pl.DataFrame({</span>
 <span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">'x'</span>: pl.Series([<span class="st">'a'</span>, <span class="st">'b'</span>], dtype<span class="op">=</span>pl.Enum([<span class="st">'a'</span>, <span class="st">'b'</span>])),</span>
 <span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">'y'</span>: pl.Series([<span class="st">'b'</span>, <span class="st">'c'</span>], dtype<span class="op">=</span>pl.Enum([<span class="st">'b'</span>, <span class="st">'c'</span>])),</span>
@@ -845,7 +845,7 @@ Insert before this 0-based index of the existing categories. <code>None</code> (
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="bd0c2e9a" class="cell" data-execution_count="16">
+<div id="d5ae701b" class="cell" data-execution_count="16">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.add_categories([<span class="st">"rabbit"</span>], before<span class="op">=</span><span class="dv">1</span>)</span>
@@ -870,7 +870,7 @@ Insert before this 0-based index of the remaining categories. <code>0</code> (de
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="4d5e8f62" class="cell" data-execution_count="17">
+<div id="3683be8e" class="cell" data-execution_count="17">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb44"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.move(<span class="st">"dog"</span>)</span>
@@ -885,7 +885,7 @@ Insert before this 0-based index of the remaining categories. <code>0</code> (de
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb46"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>Expr.ps_enum.drop_unused()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Remove categories that don’t appear in the data, preserving order.</p>
 <p><strong>Examples:</strong></p>
-<div id="c88a1eb6" class="cell" data-execution_count="18">
+<div id="43eb4ab6" class="cell" data-execution_count="18">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pl.DataFrame(</span>
 <span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>    {<span class="st">'x'</span>: pl.Series(<span class="st">'x'</span>, [<span class="st">'bird'</span>, <span class="st">'bird'</span>], dtype<span class="op">=</span>pl.Enum([<span class="st">'fish'</span>, <span class="st">'bird'</span>, <span class="st">'cat'</span>]))}</span>
 <span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>)</span>
@@ -909,7 +909,7 @@ Label for the category to assign to null values.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="e04de3a0" class="cell" data-execution_count="19">
+<div id="b9d595c3" class="cell" data-execution_count="19">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb50"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>    new_animals <span class="op">=</span> pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.missing_to_category(<span class="st">"unknown"</span>)</span>
@@ -943,7 +943,7 @@ Category name(s) to nullify. Raises if any are not current categories.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="3a1183c0" class="cell" data-execution_count="20">
+<div id="071a2293" class="cell" data-execution_count="20">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>animals <span class="op">=</span> polarstation.make_example_data(<span class="st">"animals"</span>)</span>
 <span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>animals.ps.with_columns(</span>
 <span id="cb53-3"><a href="#cb53-3" aria-hidden="true" tabindex="-1"></a>    new_animals <span class="op">=</span>  pl.col(<span class="st">"animal"</span>).ps_enum.make().ps_enum.category_to_missing(<span class="st">"bird"</span>)</span>
@@ -1006,7 +1006,7 @@ If True, return a struct {lo, hi} instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="9495e9a0" class="cell" data-execution_count="21">
+<div id="94de84e8" class="cell" data-execution_count="21">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
 <span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(</span>
 <span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"score"</span>).ps_chop.chop([<span class="dv">40</span>, <span class="dv">70</span>], fmt<span class="op">=</span><span class="st">".0f"</span>).alias(<span class="st">"grade"</span>)</span>
@@ -1073,7 +1073,7 @@ If True, return a struct instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="33e16a1f" class="cell" data-execution_count="22">
+<div id="04b488e8" class="cell" data-execution_count="22">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb59"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
 <span id="cb59-2"><a href="#cb59-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(pl.col(<span class="st">"score"</span>).ps_chop.width(<span class="dv">25</span>).alias(<span class="st">"band"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="22">
@@ -1138,7 +1138,7 @@ If True, return a struct instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="b9a6c322" class="cell" data-execution_count="23">
+<div id="db80652c" class="cell" data-execution_count="23">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
 <span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(pl.col(<span class="st">"score"</span>).ps_chop.n_elements(<span class="dv">3</span>).alias(<span class="st">"tercile"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="23">
@@ -1203,7 +1203,7 @@ If True, return a struct instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="c39970b4" class="cell" data-execution_count="24">
+<div id="792880fa" class="cell" data-execution_count="24">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
 <span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(pl.col(<span class="st">"score"</span>).ps_chop.n_groups(<span class="dv">3</span>).alias(<span class="st">"tertile"</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="24">
@@ -1268,7 +1268,7 @@ If True, return a struct instead of just the label.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="7063bf67" class="cell" data-execution_count="25">
+<div id="76a70181" class="cell" data-execution_count="25">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a>scores <span class="op">=</span> polarstation.make_example_data(<span class="st">"scores"</span>)</span>
 <span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a>scores.ps.with_columns(</span>
 <span id="cb68-3"><a href="#cb68-3" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"score"</span>).ps_chop.quantiles([<span class="fl">0.25</span>, <span class="fl">0.75</span>]).alias(<span class="st">"iqr_group"</span>)</span>
@@ -1303,7 +1303,7 @@ If True, return a struct instead of just the label.
 <p>Deprecated: thin wrapper around <code>pl.Expr.str.count_matches</code>; likely to be removed.</p>
 <p><strong>pattern</strong> = <code>''</code></p>
 <p><strong>Examples:</strong></p>
-<div id="3c96641b" class="cell" data-execution_count="26">
+<div id="3724d050" class="cell" data-execution_count="26">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a>pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"hello world"</span>, <span class="st">"foo bar baz"</span>, <span class="st">""</span>]}).select(</span>
 <span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_str.count(<span class="vs">r"</span><span class="dv">\b\w</span><span class="op">+</span><span class="dv">\b</span><span class="vs">"</span>).alias(<span class="st">"word_count"</span>)</span>
 <span id="cb71-3"><a href="#cb71-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1351,7 +1351,7 @@ Allow breaks at hyphens in compound words.
 </dl>
 <p><strong>**kwargs</strong> <code>Any</code> = <code>{}</code></p>
 <p><strong>Examples:</strong></p>
-<div id="55a139fe" class="cell" data-execution_count="27">
+<div id="86e103c1" class="cell" data-execution_count="27">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a>text <span class="op">=</span> pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"A long sentence that exceeds the column width."</span>]}).select(</span>
 <span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_str.wrap(width<span class="op">=</span><span class="dv">25</span>)</span>
 <span id="cb74-3"><a href="#cb74-3" aria-hidden="true" tabindex="-1"></a>)[<span class="st">'x'</span>].to_list()</span>
@@ -1385,7 +1385,7 @@ String inserted where the text is cut.
 </dd>
 </dl>
 <p><strong>Examples:</strong></p>
-<div id="226a890b" class="cell" data-execution_count="28">
+<div id="0f48aa4b" class="cell" data-execution_count="28">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb77"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a>pl.DataFrame({<span class="st">"x"</span>: [<span class="st">"short"</span>, <span class="st">"a much longer string"</span>]}).select(</span>
 <span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a>    pl.col(<span class="st">"x"</span>).ps_str.trunc(width<span class="op">=</span><span class="dv">10</span>)</span>
 <span id="cb77-3"><a href="#cb77-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
