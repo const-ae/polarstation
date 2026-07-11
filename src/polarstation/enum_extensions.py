@@ -164,8 +164,11 @@ def _rev_impl(*, lf, name, col_ref, dtype):
 
 
 def _reorder_impl(*, lf, name, col_ref, dtype, bys, _tmp, agg, desc, nl, missing):
+  by_exprs = [col_ref if b is None else b for b in bys]
   order_df = (
-    lf.group_by(col_ref).agg(agg(b).alias(t) for b, t in zip(bys, _tmp, strict=False)).collect()
+    lf.group_by(col_ref)
+    .agg(agg(b).alias(t) for b, t in zip(by_exprs, _tmp, strict=False))
+    .collect()
   )
   has_null_agg = pl.any_horizontal(pl.col(t).is_null() for t in _tmp)
   complete = order_df.filter(~has_null_agg).sort(_tmp, descending=desc, nulls_last=nl)
@@ -496,7 +499,7 @@ class PolarstationEnumExpression:
           pl.col("animal").ps_enum.make().ps_enum.infreq()
       )["animal"].dtype
     """
-    ordered = self.reorder(self._expr, agg=pl.Expr.len, descending=False)
+    ordered = self.reorder(None, agg=pl.Expr.len, descending=False)
     return ordered if descending else ordered.ps_enum.rev()
 
   def reorder(
@@ -531,7 +534,10 @@ class PolarstationEnumExpression:
     (chained via ``.ps_enum.to_level()``) is always locally correct, but the Enum
     dtype's own declared category *order* is one overall order, not any single group's.
     """
-    bys = [_into_expr(by)] if isinstance(by, (pl.Expr, str)) else [_into_expr(b) for b in by]
+    if by is None or isinstance(by, (pl.Expr, str)):
+      bys = [None if by is None else _into_expr(by)]
+    else:
+      bys = [None if b is None else _into_expr(b) for b in by]
     _tmp = [f"__by_{i}__" for i in range(len(bys))]
     desc = [descending] * len(bys) if isinstance(descending, bool) else list(descending)
     nl = [nulls_last] * len(bys) if isinstance(nulls_last, bool) else list(nulls_last)

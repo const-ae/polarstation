@@ -375,6 +375,18 @@ def test_infreq_ascending():
     assert r["x"].dtype.categories.to_list() == ["a", "b", "c"]
 
 
+def test_infreq_multiple_columns():
+    df = pl.DataFrame(
+        {
+            "a": ["x", "x", "x", "y", "z", "z"],
+            "b": ["q", "q", "q", "q", "q", "r"],
+        }
+    )
+    r = df.ps.with_columns(pl.col("a", "b").ps_enum.make().ps_enum.infreq())
+    assert r["a"].dtype.categories.to_list() == ["x", "z", "y"]
+    assert r["b"].dtype.categories.to_list() == ["q", "r"]
+
+
 def test_reorder_ascending():
     # agg median: b=10, c=20, a=30 → asc: b, c, a
     r = ORDER_DF.ps.with_columns(

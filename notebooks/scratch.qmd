@@ -40,7 +40,12 @@ penguins
 
 ```
 
-
+```{python}
+(penguins
+  .ps.with_columns(level = pl.col('island').ps_enum.to_level().over('species'))
+  .select('species', 'island', 'level').unique()
+)
+```
 
 ```{python}
 pl.Series('x', values = ['a', 'b', 'c']).cast(pl.Enum(categories = ['a', 'b', 'c', None]))
