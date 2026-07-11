@@ -10,6 +10,9 @@
   `Expr.ps_str.format` additionally unpacks a Struct column's fields as named template arguments.
 * `FrameExpr` (and therefore any `ps_enum`/`ps_chop`/`ps.apply`/`ps.F` expression) now supports
   `.over(*by)`, a group-aware equivalent of `pl.Expr.over()`.
+* Fix `ps_enum.infreq()`/`ps_enum.reorder()` raising a `DuplicateError` when applied to multiple
+  columns at once (e.g. `pl.col('a', 'b').ps_enum.infreq()`). `reorder()`'s `by` now also raises a
+  clear `ValueError` (instead of crashing) if a `by` expression resolves to more than one column.
 
 # v0.2.1 (2026-07-01)
 

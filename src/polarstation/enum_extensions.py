@@ -164,7 +164,19 @@ def _rev_impl(*, lf, name, col_ref, dtype):
 
 
 def _reorder_impl(*, lf, name, col_ref, dtype, bys, _tmp, agg, desc, nl, missing):
-  by_exprs = [col_ref if b is None else b for b in bys]
+  by_exprs = []
+  for b in bys:
+    if b is None:
+      by_exprs.append(col_ref)
+      continue
+    by_names = lf.select(b).collect_schema().names()
+    if len(by_names) != 1:
+      raise ValueError(
+        f"reorder: each `by` expression must resolve to a single column, got "
+        f"{len(by_names)} columns {by_names!r}. Pass separate `by` entries instead, "
+        f"e.g. by=['col1', 'col2']."
+      )
+    by_exprs.append(b)
   order_df = (
     lf.group_by(col_ref)
     .agg(agg(b).alias(t) for b, t in zip(by_exprs, _tmp, strict=False))
